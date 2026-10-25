@@ -6,6 +6,7 @@ com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 | | Link |
 |---|---|
 | Front-end (GitHub Pages) | https://rafaelnicolauios.github.io/pix-api/ |
+| Atividade (eventos e logs) | https://rafaelnicolauios.github.io/pix-api/atividade.html |
 | API (Render) | https://pix-api-vfy6.onrender.com |
 | Código | https://github.com/RafaelNicolauiOS/pix-api |
 
@@ -47,6 +48,7 @@ flowchart LR
 | `repository` | Acesso ao banco; o Spring gera a implementação a partir da interface | DataSource / Core Data |
 | `domain` | Entidade `Conta` com as regras que a protegem (saldo nunca fica negativo) | Model |
 | `mensageria` | Implementações do `PublicadorDeEventos` (Kafka, log), listener e consumidor de exemplo | Adapters de um `protocol` |
+| `monitoramento` | Últimos eventos e últimas linhas de log em memória, para a página Atividade | Um "console" de debug |
 | `config` | CORS e carga das contas de exemplo | `AppDelegate` / configuração |
 
 <details>
@@ -63,6 +65,7 @@ pix-api/
 │   │                  TransferenciaRealizadaEvent, PublicadorDeEventos
 │   ├── mensageria/    TransferenciaRealizadaListener, LogPublicadorDeEventos,
 │   │                  KafkaPublicadorDeEventos, KafkaConfig, NotificacaoConsumer
+│   ├── monitoramento/ HistoricoDeEventos, LogsEmMemoria, LinhaDeLog, MonitoramentoConfig
 │   ├── repository/    ContaRepository
 │   └── domain/        Conta, SaldoInsuficienteException
 ├── src/main/resources/
@@ -70,7 +73,7 @@ pix-api/
 │   ├── application-prod.properties   perfil de produção (PostgreSQL)
 │   └── db/migration/                 scripts do Flyway (V1__criar_tabela_conta.sql)
 ├── src/test/java/...  testes (ver "Como testar")
-├── docs/              front-end: index.html, app.js, style.css
+├── docs/              front-end: index.html + app.js, atividade.html + atividade.js, style.css
 ├── Dockerfile
 ├── render.yaml
 └── pom.xml
@@ -197,6 +200,8 @@ na fase `BEFORE_COMMIT`) grava na tabela `outbox`, e o `TransferenciaService` n�
 | `PUT` | `/contas/{id}` | `{titular, cpf, chavePix, saldo}` (altera titular e chave) | 200 · 400 · 404 · 409 |
 | `DELETE` | `/contas/{id}` | — | 204 · 404 |
 | `POST` | `/transferencias` | `{chaveOrigem, chaveDestino, valor}` | 200 · 400 · 404 · 422 |
+| `GET` | `/eventos` | — | 200: últimas 100 transferências confirmadas (mais recente primeiro) |
+| `GET` | `/logs?limite=200` | cabeçalho `X-Admin-Token` | 200: últimas linhas de log (máx. 500) · 401 · 404 se desativado |
 
 | Status | Quando |
 |---|---|
@@ -255,6 +260,46 @@ Dados inválidos (`400`):
 }
 ```
 </details>
+
+## Página Atividade (eventos e logs)
+
+https://rafaelnicolauios.github.io/pix-api/atividade.html (ou o ícone de "pulso" no topo da tela
+inicial) acompanha a API em tempo real, atualizando a cada 5 segundos enquanto a aba está visível.
+
+| Aba | Fonte | Acesso |
+|---|---|---|
+| **Eventos** | `GET /eventos` | Público: mostra os mesmos dados de `GET /contas` |
+| **Logs do servidor** | `GET /logs` | Restrito: exige o token de administrador |
+
+**Por que os logs têm token e os eventos não?** Logs revelam detalhes internos (erros, endereços
+do banco, nomes de classes). Por isso `GET /logs`:
+
+- exige o cabeçalho `X-Admin-Token` igual à variável `PIX_ADMIN_TOKEN`, comparado em tempo
+  constante (`MessageDigest.isEqual`) para não vazar informação pelo tempo de resposta;
+- fica **desativado (404)** quando `PIX_ADMIN_TOKEN` não está definido (o padrão local);
+- no Render, recebe um token aleatório gerado pelo próprio Render (`generateValue: true` no
+  `render.yaml`). Para ver: **dashboard → pix-api → Environment → `PIX_ADMIN_TOKEN`**.
+
+Na página, o token fica no `sessionStorage`: vale só para aquela aba e some ao fechá-la.
+
+**Como funciona por dentro:**
+
+- **Eventos:** um segundo listener `AFTER_COMMIT` (independente do modo `log`/`kafka`) guarda
+  os últimos 100 `TransferenciaRealizadaEvent` em `HistoricoDeEventos`.
+- **Logs:** `LogsEmMemoria` adiciona um *appender* ao Logback (o sistema de log do Spring Boot)
+  que copia cada linha, além do console, para um buffer com as últimas 500.
+- Os dois ficam **em memória**: recomeçam quando a API reinicia, e linhas do início do boot (antes
+  de o componente existir) não aparecem. O log completo continua na aba **Logs** do Render.
+
+Para testar localmente com logs habilitados:
+
+```bash
+PIX_ADMIN_TOKEN=um-token-local ./mvnw spring-boot:run
+```
+
+```bash
+curl -s "localhost:8080/logs?limite=20" -H "X-Admin-Token: um-token-local"
+```
 
 ## Como rodar localmente
 
@@ -331,7 +376,7 @@ No log aparece `Successfully applied 1 migration` na primeira vez e
 ./mvnw test
 ```
 
-**47 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2
+**60 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2
 e Kafka embutido, sem precisar de PostgreSQL, Kafka ou Docker instalados:
 
 | Teste | Tipo | Qtd. | O que cobre |
@@ -341,11 +386,15 @@ e Kafka embutido, sem precisar de PostgreSQL, Kafka ou Docker instalados:
 | `service/TransferenciaServiceTest` | Unidade com Mockito | 6 | Débito/crédito, publicação do evento e nenhuma publicação em saldo insuficiente, chave inexistente ou origem = destino |
 | `controller/ContaControllerTest` | `@WebMvcTest` | 9 | Rotas, status, JSON e validação de contas |
 | `controller/TransferenciaControllerTest` | `@WebMvcTest` | 5 | 200, 400, 404 e 422 no formato ProblemDetail |
-| `config/CorsConfigTest` | `@WebMvcTest` | 3 | GitHub Pages e localhost permitidos, outros domínios bloqueados |
+| `config/CorsConfigTest` | `@WebMvcTest` | 4 | GitHub Pages e localhost permitidos, cabeçalho do token liberado, outros domínios bloqueados |
 | `TransferenciaIntegrationTest` | `@SpringBootTest` + H2 | 3 | Débito/crédito gravados de verdade, rollback e contas de exemplo |
 | `MigracaoBancoTest` | `@SpringBootTest` | 1 | Migrações do Flyway aplicadas, nenhuma pendente |
 | `mensageria/PublicacaoAposCommitTest` | `@SpringBootTest` + mock do publicador | 3 | Evento só após o commit; nada com saldo insuficiente nem com rollback |
 | `mensageria/KafkaMensageriaIntegrationTest` | `@SpringBootTest` + `@EmbeddedKafka` | 3 | Transferência → mensagem no tópico → notificação; duplicata ignorada |
+| `monitoramento/HistoricoDeEventosTest` | Unidade pura | 2 | Ordem (mais recente primeiro) e capacidade do histórico |
+| `monitoramento/HistoricoEventosIntegrationTest` | `@SpringBootTest` | 2 | Transferência confirmada aparece em `/eventos`; recusada não |
+| `monitoramento/LogsEmMemoriaTest` | Logback real | 3 | Captura nível, logger, mensagem e exceção; mantém só as mais recentes |
+| `controller/LogsControllerTest` | `@WebMvcTest` (`@Nested`) | 5 | 401 sem token ou com token errado, 200 com o certo, limite máximo, 404 sem token configurado |
 | `PixApiApplicationTests` | `@SpringBootTest` | 1 | A aplicação sobe (e o `ddl-auto=validate` aceita o schema) |
 
 ### Teste manual com curl
@@ -394,6 +443,7 @@ sobrescrevíveis por variáveis de ambiente:
 | `spring.jpa.show-sql` | `SHOW_SQL` | `true` | Log do SQL gerado (desligado no perfil `prod`) |
 | `pix.seed.enabled` | `PIX_SEED_ENABLED` | `true` | Carga das contas de exemplo |
 | `pix.mensageria` | `PIX_MENSAGERIA` | `log` | Destino dos eventos: `log` ou `kafka` |
+| `pix.admin.token` | `PIX_ADMIN_TOKEN` | vazio | Token do `GET /logs`; vazio = endpoint desativado (no Render é gerado automaticamente) |
 | `spring.kafka.bootstrap-servers` | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Endereço do broker (só no modo `kafka`) |
 
 Só no perfil `prod` (preenchidas pelo Render a partir do banco `pix-db`):
@@ -452,6 +502,8 @@ precisa ser público no plano gratuito.
 | Tela "Pages → Verified domains" | Essas são as configurações da **conta**. O Pages se ativa em Settings do **repositório**. |
 | Página: "Sem conexão com a API" | API dormindo (aguarde ~1 min), URL errada no campo "URL da API" ou origem fora do CORS. |
 | `404` com header `x-render-routing: no-server` | Não há serviço nessa URL do Render: confira a URL real no dashboard. |
+| Atividade → Logs: "Token inválido" | Copie de novo o valor de `PIX_ADMIN_TOKEN` em **Render → pix-api → Environment**. |
+| Atividade → Logs: "Os logs estão desativados" | A API não tem `PIX_ADMIN_TOKEN` definido. No Render, rode **Manual Sync** no Blueprint para criar a variável. |
 | Página usa uma URL antiga da API | O botão **Salvar** guarda a URL no navegador (`localStorage`). Corrija o campo e salve de novo. |
 | Contas voltam aos valores iniciais (local) | Esperado: localmente o H2 é em memória e zera a cada reinício. |
 | Contas voltam aos valores iniciais (Render) | O serviço não está usando o PostgreSQL: confira se `SPRING_PROFILES_ACTIVE=prod` e as variáveis `DB_*` estão em **Environment**, e se o banco `pix-db` existe. |
