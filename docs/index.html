@@ -2,62 +2,231 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b6e5f">
   <title>Pix API Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Pix API <span class="tag">demo</span></h1>
-    <p>Front-end estático que consome a <a href="https://github.com/RafaelNicolauiOS/pix-api">pix-api</a> (Spring Boot).</p>
-    <form id="form-api" class="api-url">
-      <label for="api-url">URL da API</label>
-      <input id="api-url" type="url" required>
-      <button type="submit" class="secundario">Salvar</button>
-      <button type="button" id="testar-api" class="secundario">Testar conexão</button>
-    </form>
-    <div id="msg-api" class="mensagem" role="status" aria-live="polite"></div>
+  <!-- Ícones reutilizáveis (SVG sprite): <svg><use href="#i-pix"/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-pix" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="m8 12 4-4 4 4-4 4Z"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></g></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3 3.9M6.6 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7c1.9 0 3.6-.6 5-1.5M9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18"/></g></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></g></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></g></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></g></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/></g></symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="marca">
+      <span class="marca-logo"><svg><use href="#i-pix"/></svg></span>
+      <span class="marca-nome">Pix API <small>demo</small></span>
+    </div>
+    <div class="topbar-acoes">
+      <span id="status-conexao" class="status" data-estado="carregando" title="Status da API">
+        <span class="status-ponto"></span><span class="status-texto">Conectando…</span>
+      </span>
+      <button type="button" class="icone-btn" id="abrir-config" aria-label="Configurações da API">
+        <svg><use href="#i-gear"/></svg>
+      </button>
+    </div>
   </header>
 
-  <main>
-    <section class="card">
-      <h2>Cadastrar chave Pix</h2>
-      <form id="form-conta">
-        <label>Titular <input name="titular" required></label>
-        <label>CPF (11 dígitos) <input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11"></label>
-        <label>Chave Pix <input name="chavePix" required placeholder="email, telefone ou aleatória"></label>
-        <label>Saldo inicial (R$) <input name="saldo" type="number" min="0" step="0.01" value="100.00" required></label>
-        <button type="submit">Cadastrar</button>
-      </form>
-      <div id="msg-conta" class="mensagem" role="status" aria-live="polite"></div>
+  <main class="app">
+    <section class="coluna-principal">
+      <div class="saudacao">
+        <p>Olá! 👋</p>
+        <h1>Seu banco digital de estudo</h1>
+      </div>
+
+      <section class="cartao-saldo" aria-labelledby="titulo-saldo">
+        <div class="cartao-topo">
+          <span id="titulo-saldo">Saldo total no banco</span>
+          <button type="button" class="icone-btn claro" id="alternar-saldo" aria-pressed="false" aria-label="Ocultar valores">
+            <svg><use href="#i-eye"/></svg>
+          </button>
+        </div>
+        <p class="saldo-valor" id="saldo-total" data-valor><span class="skeleton skeleton-saldo"></span></p>
+        <p class="saldo-sub" id="saldo-sub">&nbsp;</p>
+      </section>
+
+      <nav class="atalhos" aria-label="Ações rápidas">
+        <button type="button" class="atalho" id="atalho-pix">
+          <span class="atalho-icone destaque"><svg><use href="#i-pix"/></svg></span>
+          <span>Fazer Pix</span>
+        </button>
+        <button type="button" class="atalho" id="atalho-cadastrar">
+          <span class="atalho-icone"><svg><use href="#i-plus"/></svg></span>
+          <span>Nova chave</span>
+        </button>
+        <button type="button" class="atalho" id="atalho-atualizar">
+          <span class="atalho-icone"><svg><use href="#i-refresh"/></svg></span>
+          <span>Atualizar</span>
+        </button>
+      </nav>
+
+      <aside class="dica">
+        <svg><use href="#i-key"/></svg>
+        <p>Experimente um Pix <strong>acima do saldo</strong> para ver o erro 422, ou para uma <strong>chave que não existe</strong> para ver o 404.</p>
+      </aside>
     </section>
 
-    <section class="card">
-      <h2>Transferir</h2>
-      <form id="form-transferencia">
-        <label>Chave de origem <input name="chaveOrigem" list="chaves" required></label>
-        <label>Chave de destino <input name="chaveDestino" list="chaves" required></label>
-        <label>Valor (R$) <input name="valor" type="number" min="0.01" step="0.01" required></label>
-        <datalist id="chaves"></datalist>
-        <button type="submit">Transferir</button>
-      </form>
-      <div id="msg-transferencia" class="mensagem" role="status" aria-live="polite"></div>
-    </section>
-
-    <section class="card largo">
-      <div class="titulo-linha">
-        <h2>Contas</h2>
-        <button type="button" id="atualizar" class="secundario">Atualizar</button>
+    <section class="coluna-contas" aria-labelledby="titulo-contas">
+      <div class="secao-titulo">
+        <h2 id="titulo-contas">Contas</h2>
+        <span class="contador" id="contador-contas"></span>
       </div>
-      <div class="tabela-wrap">
-        <table>
-          <thead><tr><th>ID</th><th>Titular</th><th>Chave Pix</th><th class="num">Saldo</th><th></th></tr></thead>
-          <tbody id="contas"><tr><td colspan="5">Carregando…</td></tr></tbody>
-        </table>
-      </div>
-      <div id="msg-contas" class="mensagem" role="status" aria-live="polite"></div>
+      <ul class="lista-contas" id="lista-contas" aria-live="polite">
+        <li class="conta-item carregando"><span class="skeleton avatar"></span><span class="skeleton linha"></span></li>
+        <li class="conta-item carregando"><span class="skeleton avatar"></span><span class="skeleton linha"></span></li>
+        <li class="conta-item carregando"><span class="skeleton avatar"></span><span class="skeleton linha"></span></li>
+      </ul>
+      <div class="estado-vazio" id="estado-contas" hidden></div>
     </section>
   </main>
+
+  <footer class="rodape">
+    Projeto de estudo · <a href="https://github.com/RafaelNicolauiOS/pix-api">código no GitHub</a> · não é um banco real
+  </footer>
+
+  <!-- ===== Pix (3 etapas) ===== -->
+  <dialog class="sheet" id="dlg-pix" aria-labelledby="pix-titulo">
+    <div class="sheet-cabecalho">
+      <button type="button" class="icone-btn" id="pix-voltar" aria-label="Voltar" hidden><svg><use href="#i-back"/></svg></button>
+      <h2 id="pix-titulo">Fazer Pix</h2>
+      <button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-close"/></svg></button>
+    </div>
+
+    <form class="sheet-corpo" id="pix-etapa-dados" novalidate>
+      <label class="campo">
+        <span>De qual conta?</span>
+        <select id="pix-origem" required></select>
+        <small id="pix-saldo-disponivel" class="ajuda"></small>
+      </label>
+
+      <label class="campo">
+        <span>Para qual chave Pix?</span>
+        <input id="pix-destino" required autocomplete="off" placeholder="E-mail, telefone ou chave aleatória">
+      </label>
+      <div class="contatos" id="pix-contatos" aria-label="Contatos"></div>
+
+      <label class="campo">
+        <span>Valor</span>
+        <input id="pix-valor" class="input-valor" inputmode="numeric" autocomplete="off" value="R$ 0,00" aria-describedby="pix-erro">
+      </label>
+      <p class="erro-campo" id="pix-erro" role="alert"></p>
+
+      <button type="submit" class="btn primario largo">Continuar</button>
+    </form>
+
+    <div class="sheet-corpo" id="pix-etapa-confirmar" hidden>
+      <p class="rotulo-suave">Você está enviando</p>
+      <p class="valor-grande" id="conf-valor"></p>
+      <dl class="resumo">
+        <div><dt>Para</dt><dd id="conf-para"></dd></div>
+        <div><dt>Chave Pix</dt><dd id="conf-chave"></dd></div>
+        <div><dt>De</dt><dd id="conf-de"></dd></div>
+      </dl>
+      <button type="button" class="btn primario largo" id="pix-confirmar">
+        <svg><use href="#i-pix"/></svg> Confirmar Pix
+      </button>
+    </div>
+
+    <div class="sheet-corpo resultado" id="pix-etapa-resultado" hidden></div>
+  </dialog>
+
+  <!-- ===== Nova chave ===== -->
+  <dialog class="sheet" id="dlg-cadastrar" aria-labelledby="cad-titulo">
+    <div class="sheet-cabecalho">
+      <span></span>
+      <h2 id="cad-titulo">Cadastrar chave Pix</h2>
+      <button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <form class="sheet-corpo" id="form-cadastrar" novalidate>
+      <label class="campo">
+        <span>Nome do titular</span>
+        <input name="titular" required autocomplete="name" placeholder="Ex.: Maria Silva">
+      </label>
+      <label class="campo">
+        <span>CPF</span>
+        <input name="cpf" id="cad-cpf" required inputmode="numeric" autocomplete="off" placeholder="000.000.000-00" maxlength="14">
+      </label>
+      <label class="campo">
+        <span>Chave Pix</span>
+        <input name="chavePix" required autocomplete="off" placeholder="E-mail, telefone ou chave aleatória">
+      </label>
+      <label class="campo">
+        <span>Saldo inicial</span>
+        <input id="cad-saldo" class="input-valor" inputmode="numeric" autocomplete="off" value="R$ 100,00">
+      </label>
+      <div class="caixa-erro" id="cad-erro" role="alert" hidden></div>
+      <button type="submit" class="btn primario largo">Cadastrar chave</button>
+    </form>
+  </dialog>
+
+  <!-- ===== Detalhe da conta ===== -->
+  <dialog class="sheet" id="dlg-conta" aria-labelledby="conta-nome">
+    <div class="sheet-cabecalho">
+      <span></span>
+      <h2>Detalhes da conta</h2>
+      <button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <div class="sheet-corpo">
+      <div class="conta-hero">
+        <span class="avatar grande" id="conta-avatar"></span>
+        <h3 id="conta-nome"></h3>
+        <p class="valor-grande" id="conta-saldo" data-valor></p>
+      </div>
+      <dl class="resumo">
+        <div>
+          <dt>Chave Pix</dt>
+          <dd class="com-acao"><span id="conta-chave"></span>
+            <button type="button" class="icone-btn pequeno" id="copiar-chave" aria-label="Copiar chave"><svg><use href="#i-copy"/></svg></button>
+          </dd>
+        </div>
+        <div><dt>CPF</dt><dd id="conta-cpf"></dd></div>
+        <div><dt>ID</dt><dd id="conta-id"></dd></div>
+      </dl>
+      <button type="button" class="btn primario largo" id="conta-pix"><svg><use href="#i-pix"/></svg> Fazer Pix desta conta</button>
+      <button type="button" class="btn perigo-texto largo" id="conta-excluir"><svg><use href="#i-trash"/></svg> Excluir conta</button>
+    </div>
+  </dialog>
+
+  <!-- ===== Configurações ===== -->
+  <dialog class="sheet" id="dlg-config" aria-labelledby="cfg-titulo">
+    <div class="sheet-cabecalho">
+      <span></span>
+      <h2 id="cfg-titulo">Configurações</h2>
+      <button type="button" class="icone-btn" data-fechar aria-label="Fechar"><svg><use href="#i-close"/></svg></button>
+    </div>
+    <form class="sheet-corpo" id="form-config">
+      <label class="campo">
+        <span>URL da API</span>
+        <input id="cfg-url" type="url" required>
+        <small class="ajuda">Fica salva neste navegador. Local: http://localhost:8080</small>
+      </label>
+      <p class="status-teste" id="cfg-status" role="status"></p>
+      <div class="botoes-linha">
+        <button type="button" class="btn secundario" id="cfg-testar">Testar conexão</button>
+        <button type="submit" class="btn primario">Salvar</button>
+      </div>
+      <button type="button" class="btn texto largo" id="cfg-padrao">Restaurar URL padrão</button>
+    </form>
+  </dialog>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>
