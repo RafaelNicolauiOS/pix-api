@@ -15,7 +15,8 @@ com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 ## Stack
 
 - **Java 17** (Eclipse Temurin) e **Spring Boot 4.1.2**: Web MVC, Data JPA, Validation
-- **H2** em memória como banco de dados
+- **PostgreSQL** em produção (Render) e **H2** em memória localmente e nos testes
+- **Flyway** para versionar o schema do banco (o mesmo script roda nos dois bancos)
 - **JUnit 5 + Mockito + MockMvc** para testes (desenvolvidos com TDD)
 - **Maven** via wrapper (`./mvnw`), sem precisar instalar o Maven
 - **Docker** + **Render** para a API; **GitHub Pages** para o front-end (HTML + JS puro, sem build)
@@ -31,8 +32,8 @@ flowchart LR
         C["controller<br/>rotas, validação, JSON"] --> S["service<br/>regras de negócio, @Transactional"]
         S --> R["repository<br/>Spring Data JPA"]
         S --> D["domain<br/>Conta (debitar/creditar)"]
-        R --> DB[("H2 em memória")]
     end
+    R --> DB[("PostgreSQL (Render)<br/>H2 em memória (local/testes)")]
 ```
 
 | Pacote | Responsabilidade | Paralelo com iOS/Swift |
@@ -57,7 +58,10 @@ pix-api/
 │   ├── service/       ContaService, TransferenciaService, ComprovanteTransferencia, exceções
 │   ├── repository/    ContaRepository
 │   └── domain/        Conta, SaldoInsuficienteException
-├── src/main/resources/application.properties
+├── src/main/resources/
+│   ├── application.properties        configuração padrão (H2)
+│   ├── application-prod.properties   perfil de produção (PostgreSQL)
+│   └── db/migration/                 scripts do Flyway (V1__criar_tabela_conta.sql)
 ├── src/test/java/...  testes (ver "Como testar")
 ├── docs/              front-end: index.html, app.js, style.css
 ├── Dockerfile
@@ -77,8 +81,20 @@ pix-api/
 - **Regra no domínio:** só `Conta.debitar()` / `Conta.creditar()` alteram o saldo (encapsulamento).
 - **Erros no padrão [RFC 9457 – Problem Details](https://www.rfc-editor.org/rfc/rfc9457)**
   (`application/problem+json`), centralizados em `ApiExceptionHandler`.
+- **Persistência com PostgreSQL + perfis do Spring:** o perfil `prod`
+  ([`application-prod.properties`](src/main/resources/application-prod.properties)), ativado por
+  `SPRING_PROFILES_ACTIVE=prod` no Render, troca o H2 pelo PostgreSQL. As credenciais vêm de
+  variáveis de ambiente injetadas pelo Render; nenhuma senha fica no repositório.
+- **Schema versionado com Flyway:** as tabelas são criadas por scripts em
+  [`db/migration`](src/main/resources/db/migration), aplicados uma única vez e registrados na
+  tabela `flyway_schema_history`. O Hibernate roda com `ddl-auto=validate`: só confere se as
+  entidades batem com o banco e nunca o altera. Para mudar o schema, crie um novo
+  `V2__descricao.sql` (nunca edite um script já aplicado).
+- **Listagem ordenada por `id`:** sem `ORDER BY` o PostgreSQL devolve as linhas em qualquer
+  ordem (as alteradas costumam ir para o fim); o H2 escondia isso.
 - **Dados de exemplo** via `CommandLineRunner` (`config/DadosIniciais.java`) em vez de `data.sql`:
-  reaproveita o construtor da entidade e só insere quando o banco está vazio.
+  reaproveita o construtor da entidade e só insere quando o banco está vazio (em produção, só no
+  primeiro deploy).
 - **CORS** liberado só para `https://rafaelnicolauios.github.io` e `localhost` (qualquer porta).
 
 ## Endpoints
@@ -99,7 +115,7 @@ pix-api/
 | 409 | Chave Pix já cadastrada |
 | 422 | Saldo insuficiente, ou chave de origem igual à de destino |
 
-Contas de exemplo carregadas ao iniciar:
+Contas de exemplo, criadas quando o banco está vazio:
 
 | Titular | Chave Pix | Saldo |
 |---|---|---|
@@ -182,24 +198,43 @@ python3 -m http.server 8000 --directory docs
 
 Abra http://localhost:8000. Rodando local, a página usa `http://localhost:8080` automaticamente.
 
+<details>
+<summary>Rodar localmente com PostgreSQL (igual à produção)</summary>
+
+Com um PostgreSQL local (`brew install postgresql@17`) e um banco `pix` com usuário `pix`:
+
+```bash
+./mvnw -q -DskipTests package
+```
+
+```bash
+SPRING_PROFILES_ACTIVE=prod DB_HOST=localhost DB_PORT=5432 DB_NAME=pix DB_USER=pix DB_PASSWORD=pix java -jar target/pix-api-0.0.1-SNAPSHOT.jar
+```
+
+No log aparece `Successfully applied 1 migration` na primeira vez e
+`Schema "public" is up to date` nas seguintes. Os dados continuam após reiniciar.
+</details>
+
 ## Como testar
 
 ```bash
 ./mvnw test
 ```
 
-**39 testes**, todos escritos antes da implementação (TDD: vermelho → verde):
+**40 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2,
+sem precisar de PostgreSQL instalado:
 
 | Teste | Tipo | Qtd. | O que cobre |
 |---|---|---|---|
 | `domain/ContaTest` | Unidade pura | 4 | Débito, crédito e saldo insuficiente |
-| `service/ContaServiceTest` | Unidade com Mockito | 9 | CRUD e chave Pix duplicada, com repositório mockado |
+| `service/ContaServiceTest` | Unidade com Mockito | 9 | CRUD, listagem ordenada e chave Pix duplicada, com repositório mockado |
 | `service/TransferenciaServiceTest` | Unidade com Mockito | 5 | Débito/crédito, saldo insuficiente, chave inexistente, origem = destino |
 | `controller/ContaControllerTest` | `@WebMvcTest` | 9 | Rotas, status, JSON e validação de contas |
 | `controller/TransferenciaControllerTest` | `@WebMvcTest` | 5 | 200, 400, 404 e 422 no formato ProblemDetail |
 | `config/CorsConfigTest` | `@WebMvcTest` | 3 | GitHub Pages e localhost permitidos, outros domínios bloqueados |
 | `TransferenciaIntegrationTest` | `@SpringBootTest` + H2 | 3 | Débito/crédito gravados de verdade, rollback e contas de exemplo |
-| `PixApiApplicationTests` | `@SpringBootTest` | 1 | A aplicação sobe |
+| `MigracaoBancoTest` | `@SpringBootTest` | 1 | Migrações do Flyway aplicadas, nenhuma pendente |
+| `PixApiApplicationTests` | `@SpringBootTest` | 1 | A aplicação sobe (e o `ddl-auto=validate` aceita o schema) |
 
 ### Teste manual com curl
 
@@ -240,11 +275,19 @@ sobrescrevíveis por variáveis de ambiente:
 
 | Propriedade | Variável de ambiente | Padrão | Uso |
 |---|---|---|---|
+| `spring.profiles.active` | `SPRING_PROFILES_ACTIVE` | — | `prod` ativa o PostgreSQL |
 | `server.port` | `PORT` | `8080` | Porta HTTP (o Render define `PORT`) |
 | `pix.cors.origens` | `PIX_CORS_ORIGENS` | GitHub Pages + `localhost:*` | Origens liberadas no CORS (separadas por vírgula) |
-| `spring.h2.console.enabled` | `H2_CONSOLE` | `true` | Console do H2 (`false` em produção) |
-| `spring.jpa.show-sql` | `SHOW_SQL` | `true` | Log do SQL gerado (`false` em produção) |
+| `spring.h2.console.enabled` | `H2_CONSOLE` | `true` | Console do H2 (desligado no perfil `prod`) |
+| `spring.jpa.show-sql` | `SHOW_SQL` | `true` | Log do SQL gerado (desligado no perfil `prod`) |
 | `pix.seed.enabled` | `PIX_SEED_ENABLED` | `true` | Carga das contas de exemplo |
+
+Só no perfil `prod` (preenchidas pelo Render a partir do banco `pix-db`):
+
+| Variável | Uso |
+|---|---|
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | Endereço do PostgreSQL (`jdbc:postgresql://DB_HOST:DB_PORT/DB_NAME`) |
+| `DB_USER`, `DB_PASSWORD` | Credenciais do banco |
 
 ## Deploy
 
@@ -268,9 +311,13 @@ git push -u origin main
 
 1. No [Render](https://dashboard.render.com): **New → Blueprint** → selecione o repositório.
 2. Em **Blueprint Name** digite `pix-api`; deixe **Branch** = `main` e **Blueprint Path** em branco.
-3. **Deploy Blueprint.** O [`render.yaml`](render.yaml) cria o web service usando o
-   [`Dockerfile`](Dockerfile) (build multi-stage: compila com JDK, roda só com JRE, sem root).
+3. **Deploy Blueprint.** O [`render.yaml`](render.yaml) cria:
+   - o banco **PostgreSQL `pix-db`** (plano gratuito), e
+   - o web service **`pix-api`** usando o [`Dockerfile`](Dockerfile) (build multi-stage: compila
+     com JDK, roda só com JRE, sem root), já com o perfil `prod` e as credenciais do banco.
+
    O primeiro build leva de 5 a 10 minutos; o serviço está pronto quando o status fica **Live**.
+   Mudanças no `render.yaml` enviadas por push são sincronizadas automaticamente pelo Blueprint.
 4. Se o nome já estiver em uso, o Render acrescenta um sufixo à URL (aqui ficou
    `pix-api-vfy6.onrender.com`). Copie a URL do topo da página do serviço para `API_PRODUCAO` em
    [`docs/app.js`](docs/app.js).
@@ -292,19 +339,24 @@ precisa ser público no plano gratuito.
 | Página: "Sem conexão com a API" | API dormindo (aguarde ~1 min), URL errada no campo "URL da API" ou origem fora do CORS. |
 | `404` com header `x-render-routing: no-server` | Não há serviço nessa URL do Render: confira a URL real no dashboard. |
 | Página usa uma URL antiga da API | O botão **Salvar** guarda a URL no navegador (`localStorage`). Corrija o campo e salve de novo. |
-| Contas voltaram aos valores iniciais | Esperado: o H2 é em memória e zera a cada reinício/deploy. |
+| Contas voltam aos valores iniciais (local) | Esperado: localmente o H2 é em memória e zera a cada reinício. |
+| Contas voltam aos valores iniciais (Render) | O serviço não está usando o PostgreSQL: confira se `SPRING_PROFILES_ACTIVE=prod` e as variáveis `DB_*` estão em **Environment**, e se o banco `pix-db` existe. |
+| `Schema validation: missing table [conta]` | O Hibernate não achou a tabela: verifique se o Flyway rodou (log `Migrating schema`) e se o script está em `db/migration`. |
+| `Validate failed: Migrations have failed validation` | Um script já aplicado foi editado. Desfaça a edição e crie um novo `V<n>__...sql`. |
+| Postgres local: `postmaster became multithreaded during startup` | No macOS, inicie com `LC_ALL=en_US.UTF-8`. |
 | Build Maven falha com `Non-resolvable parent POM` | A versão do Spring Boot no `pom.xml` deve ser `4.1.2` (sem sufixo `.RELEASE`). |
 
 ## Limitações
 
-- **Sem persistência:** H2 em memória, os dados voltam às contas de exemplo a cada reinício.
+- **PostgreSQL gratuito do Render expira:** o banco do plano free tem prazo de validade
+  (confira o prazo atual no dashboard do Render). Depois disso é preciso recriá-lo ou migrar
+  para um plano pago; os dados não são preservados.
 - **Sem histórico:** transferências não são registradas; só os saldos mudam.
 - **Sem autenticação:** qualquer pessoa com acesso à página pode cadastrar, excluir e transferir.
 - **Cold start** de ~50 s no plano gratuito do Render.
 
 ## Próximos passos
 
-- PostgreSQL + Flyway para persistir os dados (o Render oferece um PostgreSQL gratuito).
 - Entidade `Transferencia` com histórico e um `GET /contas/{id}/extrato`.
 - Idempotência no `POST /transferencias` (header `Idempotency-Key`) para evitar duplicidade em retries.
 - GitHub Actions rodando `./mvnw test` a cada push e bloqueando o deploy se falhar.

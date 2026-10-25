@@ -2,6 +2,7 @@ package com.rafael.pixapi.service;
 
 import com.rafael.pixapi.domain.Conta;
 import com.rafael.pixapi.repository.ContaRepository;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,8 @@ public class ContaService {
 
     @Transactional(readOnly = true)
     public List<Conta> listar() {
-        return repository.findAll();
+        // Sem ORDER BY o banco devolve as linhas em qualquer ordem (o Postgres põe as alteradas no fim).
+        return repository.findAll(Sort.by("id"));
     }
 
     @Transactional

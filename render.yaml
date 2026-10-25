@@ -1,17 +1,45 @@
-# Blueprint do Render: descreve o serviço como código (Infrastructure as Code).
+# Blueprint do Render: descreve a infraestrutura como código (Infrastructure as Code).
 # No painel do Render: New > Blueprint > selecione este repositório.
+
+databases:
+  - name: pix-db
+    plan: free
+    region: oregon # banco e API na mesma região para usar a rede interna
+    databaseName: pix
+    user: pix
+
 services:
   - type: web
     name: pix-api
     runtime: docker
     plan: free
+    region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /contas
     autoDeploy: true # novo deploy a cada push na branch main
     envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod # ativa application-prod.properties (PostgreSQL)
       - key: PIX_CORS_ORIGENS
         value: https://rafaelnicolauios.github.io
-      - key: H2_CONSOLE
-        value: "false" # console do banco não fica exposto na internet
-      - key: SHOW_SQL
-        value: "false"
+      # Credenciais do banco injetadas pelo Render: nenhuma senha fica no repositório.
+      - key: DB_HOST
+        fromDatabase:
+          name: pix-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: pix-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: pix-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: pix-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: pix-db
+          property: password

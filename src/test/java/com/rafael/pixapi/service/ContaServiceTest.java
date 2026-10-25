@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -72,8 +73,8 @@ class ContaServiceTest {
     }
 
     @Test
-    void listar_deveRetornarTodasAsContas() {
-        when(repository.findAll()).thenReturn(List.of(novaConta(), novaConta()));
+    void listar_deveRetornarTodasAsContasOrdenadasPorId() {
+        when(repository.findAll(Sort.by("id"))).thenReturn(List.of(novaConta(), novaConta()));
 
         assertThat(service.listar()).hasSize(2);
     }
