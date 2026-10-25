@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b6e5f">
+  <title>Atividade · Pix API Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-pix" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="m8 12 4-4 4 4-4 4Z"/></g></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></g></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></g></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="marca" href="./" aria-label="Voltar para o início">
+      <span class="marca-logo"><svg><use href="#i-pix"/></svg></span>
+      <span class="marca-nome">Pix API <small>demo</small></span>
+    </a>
+    <div class="topbar-acoes">
+      <span id="status-conexao" class="status" data-estado="carregando" title="Status da API">
+        <span class="status-ponto"></span><span class="status-texto">Conectando…</span>
+      </span>
+    </div>
+  </header>
+
+  <main class="pagina">
+    <a class="voltar" href="./"><svg><use href="#i-back"/></svg> Início</a>
+    <h1>Atividade da API</h1>
+    <p class="subtitulo">Acompanhe as transferências confirmadas e os logs do servidor em tempo real.</p>
+
+    <div class="abas" role="tablist" aria-label="Tipo de atividade">
+      <button type="button" role="tab" id="aba-eventos" aria-controls="painel-eventos" aria-selected="true">Eventos</button>
+      <button type="button" role="tab" id="aba-logs" aria-controls="painel-logs" aria-selected="false" tabindex="-1">
+        <svg><use href="#i-lock"/></svg> Logs do servidor
+      </button>
+    </div>
+
+    <!-- ===== Eventos ===== -->
+    <section id="painel-eventos" role="tabpanel" aria-labelledby="aba-eventos" class="painel">
+      <div class="barra">
+        <p class="barra-info" id="eventos-info">Carregando…</p>
+        <label class="interruptor"><input type="checkbox" id="eventos-auto" checked> Ao vivo</label>
+        <button type="button" class="icone-btn" id="eventos-atualizar" aria-label="Atualizar eventos"><svg><use href="#i-refresh"/></svg></button>
+      </div>
+      <ul class="feed" id="feed-eventos" aria-live="polite"></ul>
+      <div class="estado-vazio" id="eventos-vazio" hidden></div>
+      <p class="nota">Cada item é um <code>TransferenciaRealizadaEvent</code>, registrado só depois do commit no banco.
+        A lista fica em memória na API e recomeça quando o servidor reinicia.</p>
+    </section>
+
+    <!-- ===== Logs ===== -->
+    <section id="painel-logs" role="tabpanel" aria-labelledby="aba-logs" class="painel" hidden>
+      <form class="card-token" id="form-token" hidden>
+        <span class="card-token-icone"><svg><use href="#i-lock"/></svg></span>
+        <h2>Área restrita</h2>
+        <p>Os logs mostram detalhes internos do servidor. Informe o token de administrador para ver.</p>
+        <label class="campo">
+          <span>Token de administrador</span>
+          <input id="token" type="password" autocomplete="off" required placeholder="PIX_ADMIN_TOKEN">
+        </label>
+        <div class="caixa-erro" id="token-erro" role="alert" hidden></div>
+        <button type="submit" class="btn primario largo">Ver logs</button>
+        <p class="ajuda">No Render: <strong>pix-api → Environment → PIX_ADMIN_TOKEN</strong>.
+          O token fica só nesta aba do navegador e é apagado ao fechá-la.</p>
+      </form>
+
+      <div id="area-logs" hidden>
+        <div class="barra">
+          <div class="chips" role="group" aria-label="Filtrar por nível">
+            <button type="button" class="chip" data-nivel="" aria-pressed="true">Todos</button>
+            <button type="button" class="chip" data-nivel="INFO" aria-pressed="false">Info</button>
+            <button type="button" class="chip" data-nivel="WARN" aria-pressed="false">Avisos</button>
+            <button type="button" class="chip" data-nivel="ERROR" aria-pressed="false">Erros</button>
+          </div>
+          <input type="search" id="logs-busca" class="busca" placeholder="Buscar nos logs…" aria-label="Buscar nos logs">
+          <label class="interruptor"><input type="checkbox" id="logs-auto" checked> Ao vivo</label>
+          <button type="button" class="btn texto" id="logs-sair">Sair</button>
+        </div>
+        <div class="console" id="console" role="log" aria-live="off" tabindex="0"></div>
+        <p class="nota" id="logs-info"></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="atividade.js"></script>
+</body>
+</html>
