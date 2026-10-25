@@ -1,0 +1,17 @@
+# Blueprint do Render: descreve o serviço como código (Infrastructure as Code).
+# No painel do Render: New > Blueprint > selecione este repositório.
+services:
+  - type: web
+    name: pix-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /contas
+    autoDeploy: true # novo deploy a cada push na branch main
+    envVars:
+      - key: PIX_CORS_ORIGENS
+        value: https://rafaelnicolau.github.io
+      - key: H2_CONSOLE
+        value: "false" # console do banco não fica exposto na internet
+      - key: SHOW_SQL
+        value: "false"

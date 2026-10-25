@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pix API Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Pix API <span class="tag">demo</span></h1>
+    <p>Front-end estático que consome a <a href="https://github.com/rafaelnicolau/pix-api">pix-api</a> (Spring Boot).</p>
+    <form id="form-api" class="api-url">
+      <label for="api-url">URL da API</label>
+      <input id="api-url" type="url" required>
+      <button type="submit" class="secundario">Salvar</button>
+      <button type="button" id="testar-api" class="secundario">Testar conexão</button>
+    </form>
+    <div id="msg-api" class="mensagem" role="status" aria-live="polite"></div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Cadastrar chave Pix</h2>
+      <form id="form-conta">
+        <label>Titular <input name="titular" required></label>
+        <label>CPF (11 dígitos) <input name="cpf" required inputmode="numeric" pattern="\d{11}" maxlength="11"></label>
+        <label>Chave Pix <input name="chavePix" required placeholder="email, telefone ou aleatória"></label>
+        <label>Saldo inicial (R$) <input name="saldo" type="number" min="0" step="0.01" value="100.00" required></label>
+        <button type="submit">Cadastrar</button>
+      </form>
+      <div id="msg-conta" class="mensagem" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card">
+      <h2>Transferir</h2>
+      <form id="form-transferencia">
+        <label>Chave de origem <input name="chaveOrigem" list="chaves" required></label>
+        <label>Chave de destino <input name="chaveDestino" list="chaves" required></label>
+        <label>Valor (R$) <input name="valor" type="number" min="0.01" step="0.01" required></label>
+        <datalist id="chaves"></datalist>
+        <button type="submit">Transferir</button>
+      </form>
+      <div id="msg-transferencia" class="mensagem" role="status" aria-live="polite"></div>
+    </section>
+
+    <section class="card largo">
+      <div class="titulo-linha">
+        <h2>Contas</h2>
+        <button type="button" id="atualizar" class="secundario">Atualizar</button>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Titular</th><th>Chave Pix</th><th class="num">Saldo</th><th></th></tr></thead>
+          <tbody id="contas"><tr><td colspan="5">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <div id="msg-contas" class="mensagem" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
