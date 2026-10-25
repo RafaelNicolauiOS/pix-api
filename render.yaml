@@ -22,6 +22,10 @@ services:
         value: prod # ativa application-prod.properties (PostgreSQL)
       - key: PIX_CORS_ORIGENS
         value: https://rafaelnicolauios.github.io
+      # Token do GET /logs: o Render gera um valor aleatório uma única vez.
+      # Para ver: dashboard > pix-api > Environment > PIX_ADMIN_TOKEN.
+      - key: PIX_ADMIN_TOKEN
+        generateValue: true
       # Credenciais do banco injetadas pelo Render: nenhuma senha fica no repositório.
       - key: DB_HOST
         fromDatabase:

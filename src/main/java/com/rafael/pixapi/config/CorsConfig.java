@@ -22,7 +22,7 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/**")
                 .allowedOriginPatterns(origens) // "patterns" aceita curinga de porta: http://localhost:*
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("Content-Type")
+                .allowedHeaders("Content-Type", "X-Admin-Token")
                 .maxAge(3600); // navegador guarda o preflight por 1h
     }
 }

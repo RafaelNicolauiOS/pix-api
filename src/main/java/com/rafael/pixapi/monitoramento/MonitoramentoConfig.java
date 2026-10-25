@@ -9,6 +9,13 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Configuration
 public class MonitoramentoConfig {
 
+    // initMethod/destroyMethod: o Spring chama instalar() ao criar o bean e desinstalar() ao encerrar
+    // (parecido com viewDidLoad / deinit), para o appender não ficar "pendurado" no Logback.
+    @Bean(initMethod = "instalar", destroyMethod = "desinstalar")
+    LogsEmMemoria logsEmMemoria() {
+        return new LogsEmMemoria(500);
+    }
+
     @Bean
     HistoricoDeEventos historicoDeEventos() {
         return new HistoricoDeEventos(100);

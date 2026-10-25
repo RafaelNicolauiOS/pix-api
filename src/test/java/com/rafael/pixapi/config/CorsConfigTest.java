@@ -40,6 +40,16 @@ class CorsConfigTest {
     }
 
     @Test
+    void devePermitir_cabecalhoDoTokenDeAdmin() throws Exception {
+        mockMvc.perform(options("/logs")
+                        .header("Origin", "https://rafaelnicolauios.github.io")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "x-admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Headers", "x-admin-token"));
+    }
+
+    @Test
     void deveBloquear_outrosDominios() throws Exception {
         mockMvc.perform(options("/contas")
                         .header("Origin", "https://site-malicioso.com")
