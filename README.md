@@ -4,7 +4,7 @@ API REST de estudo que simula contas e transferências Pix, feita com **Spring B
 com front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 
 - **Front-end:** https://rafaelnicolauios.github.io/pix-api/
-- **API (Render):** https://pix-api.onrender.com (o plano gratuito "dorme" e leva ~1 min para acordar)
+- **API (Render):** https://pix-api-vfy6.onrender.com (o plano gratuito "dorme" e leva ~1 min para acordar)
 
 ## Arquitetura
 
@@ -118,7 +118,7 @@ curl -s -X POST localhost:8080/transferencias -H 'Content-Type: application/json
 1. Faça push deste repositório para o GitHub.
 2. No [Render](https://render.com): **New → Blueprint** e selecione o repositório. O
    [`render.yaml`](render.yaml) cria o serviço usando o [`Dockerfile`](Dockerfile).
-3. Se a URL gerada não for `https://pix-api.onrender.com`, atualize `API_PRODUCAO` em
+3. Copie a URL gerada pelo Render (ex.: `https://pix-api-xxxx.onrender.com`) para `API_PRODUCAO` em
    [`docs/app.js`](docs/app.js) (ou digite a URL no campo "URL da API" da página).
 
 > O H2 é em memória: os dados voltam aos exemplos a cada reinício/deploy. Para persistir,

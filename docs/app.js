@@ -1,7 +1,7 @@
 // Front-end sem framework: fetch() + manipulação do DOM.
 // Em Swift seria o equivalente a URLSession + atualizar a UI na main thread.
 
-const API_PRODUCAO = "https://pix-api.onrender.com"; // ajuste se o Render gerar outra URL
+const API_PRODUCAO = "https://pix-api-vfy6.onrender.com"; // URL gerada pelo Render
 const API_LOCAL = "http://localhost:8080";
 const CHAVE_STORAGE = "pix-api-url";
 
