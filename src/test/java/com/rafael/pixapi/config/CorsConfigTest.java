@@ -25,10 +25,10 @@ class CorsConfigTest {
     @Test
     void devePermitir_githubPages() throws Exception {
         mockMvc.perform(options("/contas")
-                        .header("Origin", "https://rafaelnicolau.github.io")
+                        .header("Origin", "https://rafaelnicolauios.github.io")
                         .header("Access-Control-Request-Method", "POST"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Access-Control-Allow-Origin", "https://rafaelnicolau.github.io"));
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://rafaelnicolauios.github.io"));
     }
 
     @Test

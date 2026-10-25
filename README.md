@@ -3,7 +3,7 @@
 API REST de estudo que simula contas e transferências Pix, feita com **Spring Boot 4 + Java 17**,
 com front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 
-- **Front-end:** https://rafaelnicolau.github.io/pix-api/
+- **Front-end:** https://rafaelnicolauios.github.io/pix-api/
 - **API (Render):** https://pix-api.onrender.com (o plano gratuito "dorme" e leva ~1 min para acordar)
 
 ## Arquitetura
@@ -50,7 +50,7 @@ flowchart LR
 
 - **Dados de exemplo** via `CommandLineRunner` (`config/DadosIniciais.java`), só quando o banco
   está vazio. Desligue com `pix.seed.enabled=false`.
-- **CORS** liberado só para `https://rafaelnicolau.github.io` e `localhost` (configurável por
+- **CORS** liberado só para `https://rafaelnicolauios.github.io` e `localhost` (configurável por
   `PIX_CORS_ORIGENS`).
 
 ## Endpoints
@@ -128,7 +128,7 @@ curl -s -X POST localhost:8080/transferencias -H 'Content-Type: application/json
 
 **Settings → Pages → Build and deployment → Deploy from a branch → `main` / `/docs`.**
 
-Em poucos minutos fica disponível em https://rafaelnicolau.github.io/pix-api/.
+Em poucos minutos fica disponível em https://rafaelnicolauios.github.io/pix-api/.
 
 ## Próximos passos
 
