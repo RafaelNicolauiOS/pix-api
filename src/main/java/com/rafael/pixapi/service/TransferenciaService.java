@@ -2,19 +2,25 @@ package com.rafael.pixapi.service;
 
 import com.rafael.pixapi.domain.Conta;
 import com.rafael.pixapi.repository.ContaRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 public class TransferenciaService {
 
     private final ContaRepository repository;
+    private final ApplicationEventPublisher eventos;
 
-    public TransferenciaService(ContaRepository repository) {
+    // ApplicationEventPublisher é o "NotificationCenter" interno do Spring: o service só avisa
+    // que algo aconteceu, sem conhecer quem vai reagir (listener, Kafka, log...).
+    public TransferenciaService(ContaRepository repository, ApplicationEventPublisher eventos) {
         this.repository = repository;
+        this.eventos = eventos;
     }
 
     // @Transactional: tudo aqui dentro é "tudo ou nada". Se qualquer exceção (unchecked)
@@ -42,7 +48,11 @@ public class TransferenciaService {
         origem.debitar(valor);   // lança SaldoInsuficienteException se não houver saldo
         destino.creditar(valor);
 
-        return new ComprovanteTransferencia(chaveOrigem, chaveDestino, valor, origem.getSaldo(), Instant.now());
+        Instant agora = Instant.now();
+        // Publicado DENTRO da transação: o listener (AFTER_COMMIT) só o repassa se o commit der certo.
+        eventos.publishEvent(new TransferenciaRealizadaEvent(UUID.randomUUID(), chaveOrigem, chaveDestino, valor, agora));
+
+        return new ComprovanteTransferencia(chaveOrigem, chaveDestino, valor, origem.getSaldo(), agora);
     }
 
     private Conta buscarComLock(String chavePix) {

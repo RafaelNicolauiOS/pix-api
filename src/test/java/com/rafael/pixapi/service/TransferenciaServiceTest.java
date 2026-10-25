@@ -5,15 +5,18 @@ import com.rafael.pixapi.domain.SaldoInsuficienteException;
 import com.rafael.pixapi.repository.ContaRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -24,6 +27,9 @@ class TransferenciaServiceTest {
 
     @Mock
     private ContaRepository repository;
+
+    @Mock
+    private ApplicationEventPublisher eventos; // "NotificationCenter" do Spring
 
     @InjectMocks
     private TransferenciaService service;
@@ -47,6 +53,25 @@ class TransferenciaServiceTest {
     }
 
     @Test
+    void transferir_devePublicarEventoTransferenciaRealizada() {
+        when(repository.findComLockByChavePix("ana@pix.com")).thenReturn(Optional.of(ana));
+        when(repository.findComLockByChavePix("bruno@pix.com")).thenReturn(Optional.of(bruno));
+
+        ComprovanteTransferencia comprovante =
+                service.transferir("ana@pix.com", "bruno@pix.com", new BigDecimal("30.00"));
+
+        // ArgumentCaptor "captura" o objeto passado ao mock para inspecionarmos depois.
+        ArgumentCaptor<TransferenciaRealizadaEvent> captor = ArgumentCaptor.forClass(TransferenciaRealizadaEvent.class);
+        verify(eventos).publishEvent(captor.capture());
+        TransferenciaRealizadaEvent evento = captor.getValue();
+        assertThat(evento.id()).isNotNull();
+        assertThat(evento.chaveOrigem()).isEqualTo("ana@pix.com");
+        assertThat(evento.chaveDestino()).isEqualTo("bruno@pix.com");
+        assertThat(evento.valor()).isEqualByComparingTo("30.00");
+        assertThat(evento.realizadaEm()).isEqualTo(comprovante.realizadaEm());
+    }
+
+    @Test
     void transferir_deveLancarExcecaoSemAlterarSaldos_quandoSaldoInsuficiente() {
         when(repository.findComLockByChavePix("ana@pix.com")).thenReturn(Optional.of(ana));
         when(repository.findComLockByChavePix("bruno@pix.com")).thenReturn(Optional.of(bruno));
@@ -55,6 +80,7 @@ class TransferenciaServiceTest {
                 .isInstanceOf(SaldoInsuficienteException.class);
         assertThat(ana.getSaldo()).isEqualByComparingTo("100.00");
         assertThat(bruno.getSaldo()).isEqualByComparingTo("50.00");
+        verify(eventos, never()).publishEvent(any());
     }
 
     @Test
@@ -66,6 +92,7 @@ class TransferenciaServiceTest {
                 .isInstanceOf(ChavePixNaoEncontradaException.class)
                 .hasMessageContaining("zzz@pix.com");
         assertThat(bruno.getSaldo()).isEqualByComparingTo("50.00");
+        verify(eventos, never()).publishEvent(any());
     }
 
     @Test
@@ -84,5 +111,6 @@ class TransferenciaServiceTest {
         assertThatThrownBy(() -> service.transferir("ana@pix.com", "ana@pix.com", BigDecimal.ONE))
                 .isInstanceOf(TransferenciaInvalidaException.class);
         verify(repository, never()).findComLockByChavePix(anyString());
+        verify(eventos, never()).publishEvent(any());
     }
 }
