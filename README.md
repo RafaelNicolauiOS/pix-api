@@ -17,6 +17,7 @@ com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 - **Java 17** (Eclipse Temurin) e **Spring Boot 4.1.2**: Web MVC, Data JPA, Validation
 - **PostgreSQL** em produção (Render) e **H2** em memória localmente e nos testes
 - **Flyway** para versionar o schema do banco (o mesmo script roda nos dois bancos)
+- **Spring Kafka** para publicar eventos de domínio (opcional; no Render os eventos vão para o log)
 - **JUnit 5 + Mockito + MockMvc** para testes (desenvolvidos com TDD)
 - **Maven** via wrapper (`./mvnw`), sem precisar instalar o Maven
 - **Docker** + **Render** para a API; **GitHub Pages** para o front-end (HTML + JS puro, sem build)
@@ -32,7 +33,9 @@ flowchart LR
         C["controller<br/>rotas, validação, JSON"] --> S["service<br/>regras de negócio, @Transactional"]
         S --> R["repository<br/>Spring Data JPA"]
         S --> D["domain<br/>Conta (debitar/creditar)"]
+        S -. "evento após commit" .-> M["mensageria<br/>PublicadorDeEventos"]
     end
+    M -. "pix.mensageria=kafka" .-> K[["Kafka<br/>tópico pix.transferencias"]]
     R --> DB[("PostgreSQL (Render)<br/>H2 em memória (local/testes)")]
 ```
 
@@ -43,6 +46,7 @@ flowchart LR
 | `service` | Casos de uso: CRUD de contas e transferência (transacional) | ViewModel / UseCase |
 | `repository` | Acesso ao banco; o Spring gera a implementação a partir da interface | DataSource / Core Data |
 | `domain` | Entidade `Conta` com as regras que a protegem (saldo nunca fica negativo) | Model |
+| `mensageria` | Implementações do `PublicadorDeEventos` (Kafka, log), listener e consumidor de exemplo | Adapters de um `protocol` |
 | `config` | CORS e carga das contas de exemplo | `AppDelegate` / configuração |
 
 <details>
@@ -55,7 +59,10 @@ pix-api/
 │   ├── config/        CorsConfig, DadosIniciais
 │   ├── controller/    ContaController, TransferenciaController, ApiExceptionHandler
 │   │   └── dto/       ContaRequest, ContaResponse, TransferenciaRequest
-│   ├── service/       ContaService, TransferenciaService, ComprovanteTransferencia, exceções
+│   ├── service/       ContaService, TransferenciaService, ComprovanteTransferencia, exceções,
+│   │                  TransferenciaRealizadaEvent, PublicadorDeEventos
+│   ├── mensageria/    TransferenciaRealizadaListener, LogPublicadorDeEventos,
+│   │                  KafkaPublicadorDeEventos, KafkaConfig, NotificacaoConsumer
 │   ├── repository/    ContaRepository
 │   └── domain/        Conta, SaldoInsuficienteException
 ├── src/main/resources/
@@ -96,6 +103,89 @@ pix-api/
   reaproveita o construtor da entidade e só insere quando o banco está vazio (em produção, só no
   primeiro deploy).
 - **CORS** liberado só para `https://rafaelnicolauios.github.io` e `localhost` (qualquer porta).
+- **Eventos publicados só após o commit:** ver [Mensageria](#mensageria-eventos).
+
+## Mensageria (eventos)
+
+Cada transferência concluída gera o evento **`TransferenciaRealizadaEvent`**
+(`id`, `chaveOrigem`, `chaveDestino`, `valor`, `realizadaEm`), para que outros sistemas
+(notificações, antifraude, extrato...) reajam sem que o `TransferenciaService` precise conhecê-los.
+
+```mermaid
+sequenceDiagram
+    participant S as TransferenciaService
+    participant TX as Transação (banco)
+    participant L as TransferenciaRealizadaListener
+    participant P as PublicadorDeEventos
+    participant K as Kafka: pix.transferencias
+    participant N as NotificacaoConsumer
+    S->>TX: debita / credita
+    S->>S: publishEvent(TransferenciaRealizadaEvent)
+    Note over S,L: o Spring guarda o evento até o fim da transação
+    TX-->>L: COMMIT ok (AFTER_COMMIT)
+    L->>P: publicar(evento)
+    alt pix.mensageria=kafka
+        P->>K: JSON, key = chaveOrigem
+        K->>N: mensagem
+        N->>N: ignora id repetido e registra a notificação
+    else pix.mensageria=log (padrão, Render)
+        P->>P: registra no log
+    end
+```
+
+**Como funciona e por quê:**
+
+1. **O service só anuncia o fato.** `TransferenciaService` chama
+   `ApplicationEventPublisher.publishEvent(...)`, o "NotificationCenter" interno do Spring.
+   Ele não sabe se o evento vai para o Kafka, para o log ou para lugar nenhum.
+2. **Nada sai antes do commit.** `TransferenciaRealizadaListener` usa
+   `@TransactionalEventListener(phase = AFTER_COMMIT)`: o Spring segura o evento e só chama o
+   listener depois que o banco confirmou a transação. Com saldo insuficiente, chave inexistente
+   ou qualquer rollback, o evento é descartado. Assim nunca avisamos de uma transferência que
+   não aconteceu. (Um `@EventListener` comum dispararia na hora, e o teste
+   `PublicacaoAposCommitTest` falha se trocarmos um pelo outro.)
+3. **Porta e adaptadores.** `PublicadorDeEventos` é uma interface do pacote `service`, como um
+   `protocol` em Swift. A implementação é escolhida pela propriedade `pix.mensageria`:
+
+   | `pix.mensageria` | Implementação | Uso |
+   |---|---|---|
+   | `log` (padrão) | `LogPublicadorDeEventos` | Render e desenvolvimento sem broker: só registra no log |
+   | `kafka` | `KafkaPublicadorDeEventos` | Envia ao tópico `pix.transferencias` |
+
+   No modo `log` nenhum bean de Kafka é criado, então a aplicação nem tenta conectar a um broker.
+4. **Mensagem em JSON, com a chave Pix de origem como *key*.** O Kafka envia mensagens com a mesma
+   key para a mesma partição, o que mantém a ordem dos eventos de cada conta. O JSON é gerado pela
+   própria aplicação (sem nomes de classes Java no payload), legível por consumidores em qualquer
+   linguagem.
+5. **Consumidor idempotente.** O Kafka entrega "pelo menos uma vez": a mesma mensagem pode chegar
+   repetida. O `NotificacaoConsumer` usa o `id` do evento para ignorar duplicatas.
+
+Exemplo de mensagem no tópico:
+
+```json
+{"id":"9ad998de-6f5f-472a-8552-3b963c83d626","chaveOrigem":"ana@pix.com",
+ "chaveDestino":"bruno@pix.com","valor":12.34,"realizadaEm":"2026-10-25T16:16:25.300Z"}
+```
+
+### Limitação atual e evolução: Transactional Outbox
+
+O `AFTER_COMMIT` resolve metade do problema: **nunca publicamos algo que sofreu rollback**. Mas a
+transferência e o envio ao Kafka continuam sendo duas operações separadas (*dual write*). Se a
+aplicação cair, ou o Kafka estiver fora do ar, **logo depois do commit**, a transferência fica
+gravada e o evento se perde. Hoje isso só aparece como um erro no log.
+
+A evolução é o padrão **[Transactional Outbox](https://microservices.io/patterns/data/transactional-outbox.html)**:
+
+1. Na **mesma transação** da transferência, gravar o evento numa tabela `outbox` do banco.
+   Ou tudo é salvo, ou nada é.
+2. Um processo separado (um `@Scheduled` lendo a tabela, ou CDC com
+   [Debezium](https://debezium.io/documentation/reference/stable/transformations/outbox-event-router.html))
+   lê os eventos pendentes, envia ao Kafka e marca como enviados, tentando de novo em caso de falha.
+3. Como uma reenviada pode duplicar mensagens, os consumidores continuam idempotentes pelo `id`
+   (o que o `NotificacaoConsumer` já faz).
+
+Nesta arquitetura, a mudança fica contida: um novo `PublicadorDeEventos` (ou o próprio listener,
+na fase `BEFORE_COMMIT`) grava na tabela `outbox`, e o `TransferenciaService` não muda.
 
 ## Endpoints
 
@@ -199,6 +289,26 @@ python3 -m http.server 8000 --directory docs
 Abra http://localhost:8000. Rodando local, a página usa `http://localhost:8080` automaticamente.
 
 <details>
+<summary>Rodar localmente com Kafka</summary>
+
+Os testes não precisam de Kafka instalado (usam `@EmbeddedKafka`). Para ver a mensageria rodando
+de verdade, suba um broker em `localhost:9092`, por exemplo com Docker:
+
+```bash
+docker run -d --name kafka -p 9092:9092 apache/kafka:4.0.0
+```
+
+E rode a API no modo Kafka:
+
+```bash
+PIX_MENSAGERIA=kafka ./mvnw spring-boot:run
+```
+
+A cada transferência aparecem no log `Evento ... publicado em pix.transferencias-<partição>@<offset>`
+e `Notificação para <chave>: você recebeu um Pix de R$ ...`.
+</details>
+
+<details>
 <summary>Rodar localmente com PostgreSQL (igual à produção)</summary>
 
 Com um PostgreSQL local (`brew install postgresql@17`) e um banco `pix` com usuário `pix`:
@@ -221,19 +331,21 @@ No log aparece `Successfully applied 1 migration` na primeira vez e
 ./mvnw test
 ```
 
-**40 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2,
-sem precisar de PostgreSQL instalado:
+**47 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2
+e Kafka embutido, sem precisar de PostgreSQL, Kafka ou Docker instalados:
 
 | Teste | Tipo | Qtd. | O que cobre |
 |---|---|---|---|
 | `domain/ContaTest` | Unidade pura | 4 | Débito, crédito e saldo insuficiente |
 | `service/ContaServiceTest` | Unidade com Mockito | 9 | CRUD, listagem ordenada e chave Pix duplicada, com repositório mockado |
-| `service/TransferenciaServiceTest` | Unidade com Mockito | 5 | Débito/crédito, saldo insuficiente, chave inexistente, origem = destino |
+| `service/TransferenciaServiceTest` | Unidade com Mockito | 6 | Débito/crédito, publicação do evento e nenhuma publicação em saldo insuficiente, chave inexistente ou origem = destino |
 | `controller/ContaControllerTest` | `@WebMvcTest` | 9 | Rotas, status, JSON e validação de contas |
 | `controller/TransferenciaControllerTest` | `@WebMvcTest` | 5 | 200, 400, 404 e 422 no formato ProblemDetail |
 | `config/CorsConfigTest` | `@WebMvcTest` | 3 | GitHub Pages e localhost permitidos, outros domínios bloqueados |
 | `TransferenciaIntegrationTest` | `@SpringBootTest` + H2 | 3 | Débito/crédito gravados de verdade, rollback e contas de exemplo |
 | `MigracaoBancoTest` | `@SpringBootTest` | 1 | Migrações do Flyway aplicadas, nenhuma pendente |
+| `mensageria/PublicacaoAposCommitTest` | `@SpringBootTest` + mock do publicador | 3 | Evento só após o commit; nada com saldo insuficiente nem com rollback |
+| `mensageria/KafkaMensageriaIntegrationTest` | `@SpringBootTest` + `@EmbeddedKafka` | 3 | Transferência → mensagem no tópico → notificação; duplicata ignorada |
 | `PixApiApplicationTests` | `@SpringBootTest` | 1 | A aplicação sobe (e o `ddl-auto=validate` aceita o schema) |
 
 ### Teste manual com curl
@@ -281,6 +393,8 @@ sobrescrevíveis por variáveis de ambiente:
 | `spring.h2.console.enabled` | `H2_CONSOLE` | `true` | Console do H2 (desligado no perfil `prod`) |
 | `spring.jpa.show-sql` | `SHOW_SQL` | `true` | Log do SQL gerado (desligado no perfil `prod`) |
 | `pix.seed.enabled` | `PIX_SEED_ENABLED` | `true` | Carga das contas de exemplo |
+| `pix.mensageria` | `PIX_MENSAGERIA` | `log` | Destino dos eventos: `log` ou `kafka` |
+| `spring.kafka.bootstrap-servers` | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Endereço do broker (só no modo `kafka`) |
 
 Só no perfil `prod` (preenchidas pelo Render a partir do banco `pix-db`):
 
@@ -357,6 +471,7 @@ precisa ser público no plano gratuito.
 
 ## Próximos passos
 
+- Transactional Outbox para garantir a entrega dos eventos (ver [Mensageria](#mensageria-eventos)).
 - Entidade `Transferencia` com histórico e um `GET /contas/{id}/extrato`.
 - Idempotência no `POST /transferencias` (header `Idempotency-Key`) para evitar duplicidade em retries.
 - GitHub Actions rodando `./mvnw test` a cada push e bloqueando o deploy se falhar.
