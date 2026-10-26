@@ -1,5 +1,6 @@
 package com.rafael.pixapi.controller;
 
+import com.rafael.pixapi.batch.DataDeReferenciaInvalidaException;
 import com.rafael.pixapi.domain.SaldoInsuficienteException;
 import com.rafael.pixapi.service.ChavePixDuplicadaException;
 import com.rafael.pixapi.service.ChavePixNaoEncontradaException;
@@ -43,6 +44,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(TransferenciaInvalidaException.class)
     public ProblemDetail transferenciaInvalida(TransferenciaInvalidaException e) {
         return problema(HttpStatus.UNPROCESSABLE_CONTENT, "Transferência inválida", e);
+    }
+
+    @ExceptionHandler(DataDeReferenciaInvalidaException.class)
+    public ProblemDetail dataInvalida(DataDeReferenciaInvalidaException e) {
+        return problema(HttpStatus.BAD_REQUEST, "Data de referência inválida", e);
     }
 
     // 400: o JSON recebido não passa nas validações (@NotBlank, @Positive...).
