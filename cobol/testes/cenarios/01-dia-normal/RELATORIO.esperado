@@ -1,0 +1,22 @@
+PIX-API - PROCESSAMENTO NOTURNO         CONCILIA - CONCILIACAO RAZAO X SALDO                                            PAGINA 0001
+DATA DE REFERENCIA: 25/10/2026   EXTRACAO: 26/10/2026 03:00:05   PROCESSAMENTO: 26/10/2026 03:00:07
+------------------------------------------------------------------------------------------------------------------------------------
+     CONTA CHAVE PIX            ABERTURA   CREDITOS DIA    DEBITOS DIA    SALDO CALC.      SALDO API      DIFERENCA SITUACAO
+------------------------------------------------------------------------------------------------------------------------------------
+         1 ana@pix.com          1.000,00          10,00         120,50         869,50         869,50           0,00 CONCILIADA
+         2 bruno@pix.com          250,00         120,50          10,00         380,50         380,50           0,00 CONCILIADA
+         3                          0,00           0,00           0,00           0,00           0,00           0,00 ENCERRADA
+         4 carla@pix.com           50,00           0,00           0,00          50,00          50,00           0,00 CONCILIADA
+------------------------------------------------------------------------------------------------------------------------------------
+TOTAIS DE CONTROLE
+  REGISTROS DE CONTA LIDOS .........:                    3
+  LANCAMENTOS LIDOS NO RAZAO .......:                   11
+  CREDITOS NO ARQUIVO ..............:             1.525,50
+  DEBITOS NO ARQUIVO ...............:               225,50
+  CREDITOS DO DIA ..................:               130,50
+  DEBITOS DO DIA ...................:               130,50
+  CONTAS AVALIADAS .................:                    4
+  CONTAS COM DIVERGENCIA ...........:                    0
+------------------------------------------------------------------------------------------------------------------------------------
+RESULTADO: CONCILIACAO OK - RAZAO E SALDOS CONFEREM                                                            RC=00
+SALDO CALC. = ABERTURA + CREDITOS DO DIA - DEBITOS DO DIA + MOVIMENTO POSTERIOR AO DIA (ATE A EXTRACAO)
