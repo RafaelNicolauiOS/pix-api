@@ -1,8 +1,11 @@
 package com.rafael.pixapi.service;
 
 import com.rafael.pixapi.domain.Conta;
+import com.rafael.pixapi.domain.Lancamento;
+import com.rafael.pixapi.domain.TipoLancamento;
 import com.rafael.pixapi.domain.SaldoInsuficienteException;
 import com.rafael.pixapi.repository.ContaRepository;
+import com.rafael.pixapi.repository.LancamentoRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -10,8 +13,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,11 +36,48 @@ class TransferenciaServiceTest {
     @Mock
     private ApplicationEventPublisher eventos; // "NotificationCenter" do Spring
 
+    @Mock
+    private LancamentoRepository lancamentos;
+
     @InjectMocks
     private TransferenciaService service;
 
     private final Conta ana = new Conta("Ana", "11111111111", "ana@pix.com", new BigDecimal("100.00"));
     private final Conta bruno = new Conta("Bruno", "22222222222", "bruno@pix.com", new BigDecimal("50.00"));
+
+    {
+        // Bloco de inicialização: roda a cada teste, como um setUp. Dá ids às contas.
+        ReflectionTestUtils.setField(ana, "id", 1L);
+        ReflectionTestUtils.setField(bruno, "id", 2L);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void transferir_deveRegistrarDebitoECreditoNoRazao_comOIdDoEvento() {
+        when(repository.findComLockByChavePix("ana@pix.com")).thenReturn(Optional.of(ana));
+        when(repository.findComLockByChavePix("bruno@pix.com")).thenReturn(Optional.of(bruno));
+
+        service.transferir("ana@pix.com", "bruno@pix.com", new BigDecimal("30.00"));
+
+        ArgumentCaptor<TransferenciaRealizadaEvent> evento = ArgumentCaptor.forClass(TransferenciaRealizadaEvent.class);
+        verify(eventos).publishEvent(evento.capture());
+        ArgumentCaptor<List<Lancamento>> captor = ArgumentCaptor.forClass(List.class);
+        verify(lancamentos).saveAll(captor.capture());
+
+        List<Lancamento> registrados = captor.getValue();
+        assertThat(registrados).hasSize(2);
+        Lancamento debito = registrados.get(0);
+        Lancamento credito = registrados.get(1);
+        assertThat(debito.getContaId()).isEqualTo(1L);
+        assertThat(debito.getTipo()).isEqualTo(TipoLancamento.PIX_ENVIADO);
+        assertThat(credito.getContaId()).isEqualTo(2L);
+        assertThat(credito.getTipo()).isEqualTo(TipoLancamento.PIX_RECEBIDO);
+        assertThat(registrados).allSatisfy(l -> {
+            assertThat(l.getValor()).isEqualByComparingTo("30.00");
+            assertThat(l.getTransferenciaId()).isEqualTo(evento.getValue().id());
+            assertThat(l.getRealizadoEm()).isEqualTo(evento.getValue().realizadaEm());
+        });
+    }
 
     @Test
     void transferir_deveDebitarOrigemECreditarDestino() {
@@ -81,6 +123,7 @@ class TransferenciaServiceTest {
         assertThat(ana.getSaldo()).isEqualByComparingTo("100.00");
         assertThat(bruno.getSaldo()).isEqualByComparingTo("50.00");
         verify(eventos, never()).publishEvent(any());
+        verify(lancamentos, never()).saveAll(any());
     }
 
     @Test

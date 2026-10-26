@@ -1,11 +1,15 @@
 package com.rafael.pixapi.service;
 
 import com.rafael.pixapi.domain.Conta;
+import com.rafael.pixapi.domain.Lancamento;
 import com.rafael.pixapi.repository.ContaRepository;
+import com.rafael.pixapi.repository.LancamentoRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 // @Service registra a classe no container do Spring para ser injetada no controller.
@@ -13,10 +17,12 @@ import java.util.List;
 public class ContaService {
 
     private final ContaRepository repository;
+    private final LancamentoRepository lancamentos;
 
     // Injeção de dependência pelo construtor (como passar a dependência no init em Swift).
-    public ContaService(ContaRepository repository) {
+    public ContaService(ContaRepository repository, LancamentoRepository lancamentos) {
         this.repository = repository;
+        this.lancamentos = lancamentos;
     }
 
     @Transactional
@@ -24,7 +30,10 @@ public class ContaService {
         if (repository.existsByChavePix(conta.getChavePix())) {
             throw new ChavePixDuplicadaException(conta.getChavePix());
         }
-        return repository.save(conta);
+        Conta criada = repository.save(conta);
+        // Mesma transação: ou a conta e a abertura no razão são gravadas juntas, ou nada é.
+        lancamentos.save(Lancamento.abertura(criada.getId(), criada.getSaldo(), Instant.now()));
+        return criada;
     }
 
     @Transactional(readOnly = true)
@@ -52,9 +61,11 @@ public class ContaService {
 
     @Transactional
     public void remover(Long id) {
-        if (!repository.existsById(id)) {
-            throw new ContaNaoEncontradaException(id);
+        Conta conta = buscarPorId(id);
+        // O saldo restante "sai" no encerramento, zerando a conta no razão (o histórico fica).
+        if (conta.getSaldo().compareTo(BigDecimal.ZERO) > 0) {
+            lancamentos.save(Lancamento.encerramento(id, conta.getSaldo(), Instant.now()));
         }
-        repository.deleteById(id);
+        repository.delete(conta);
     }
 }

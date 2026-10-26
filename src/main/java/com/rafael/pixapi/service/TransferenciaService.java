@@ -1,13 +1,16 @@
 package com.rafael.pixapi.service;
 
 import com.rafael.pixapi.domain.Conta;
+import com.rafael.pixapi.domain.Lancamento;
 import com.rafael.pixapi.repository.ContaRepository;
+import com.rafael.pixapi.repository.LancamentoRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -15,12 +18,15 @@ public class TransferenciaService {
 
     private final ContaRepository repository;
     private final ApplicationEventPublisher eventos;
+    private final LancamentoRepository lancamentos;
 
     // ApplicationEventPublisher é o "NotificationCenter" interno do Spring: o service só avisa
     // que algo aconteceu, sem conhecer quem vai reagir (listener, Kafka, log...).
-    public TransferenciaService(ContaRepository repository, ApplicationEventPublisher eventos) {
+    public TransferenciaService(ContaRepository repository, ApplicationEventPublisher eventos,
+                                LancamentoRepository lancamentos) {
         this.repository = repository;
         this.eventos = eventos;
+        this.lancamentos = lancamentos;
     }
 
     // @Transactional: tudo aqui dentro é "tudo ou nada". Se qualquer exceção (unchecked)
@@ -49,8 +55,15 @@ public class TransferenciaService {
         destino.creditar(valor);
 
         Instant agora = Instant.now();
+        UUID id = UUID.randomUUID();
+
+        // Partidas dobradas: todo débito tem um crédito de mesmo valor, ligados pelo id da transferência.
+        lancamentos.saveAll(List.of(
+                Lancamento.pixEnviado(origem.getId(), valor, agora, id),
+                Lancamento.pixRecebido(destino.getId(), valor, agora, id)));
+
         // Publicado DENTRO da transação: o listener (AFTER_COMMIT) só o repassa se o commit der certo.
-        eventos.publishEvent(new TransferenciaRealizadaEvent(UUID.randomUUID(), chaveOrigem, chaveDestino, valor, agora));
+        eventos.publishEvent(new TransferenciaRealizadaEvent(id, chaveOrigem, chaveDestino, valor, agora));
 
         return new ComprovanteTransferencia(chaveOrigem, chaveDestino, valor, origem.getSaldo(), agora);
     }

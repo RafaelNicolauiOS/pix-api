@@ -24,7 +24,7 @@ class MigracaoBancoTest {
 
         assertThat(aplicadas).isNotEmpty();
         assertThat(Arrays.stream(aplicadas).map(MigrationInfo::getDescription))
-                .contains("criar tabela conta");
+                .contains("criar tabela conta", "criar razao lancamento");
         assertThat(flyway.info().pending()).isEmpty();
     }
 }
