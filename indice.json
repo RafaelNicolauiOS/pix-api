@@ -1,0 +1,14 @@
+{
+  "execucoes": [
+    {
+      "id": "20261026-122915",
+      "titulo": "Primeira execução em produção",
+      "origem": "manual",
+      "inicio": "2026-10-26T12:29:15Z",
+      "dataReferencia": "2026-10-26",
+      "rc": 0,
+      "situacao": "OK"
+    }
+  ],
+  "atualizadoEm": "2026-10-26T12:29:16Z"
+}

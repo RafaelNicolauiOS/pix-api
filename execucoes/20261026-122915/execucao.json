@@ -1,0 +1,40 @@
+{
+  "id": "20261026-122915",
+  "titulo": "Primeira execução em produção",
+  "origem": "manual",
+  "api": "https://pix-api-vfy6.onrender.com",
+  "inicio": "2026-10-26T12:29:15Z",
+  "fim": "2026-10-26T12:29:16Z",
+  "dataReferencia": "2026-10-26",
+  "rc": 0,
+  "situacao": "OK",
+  "passos": [
+    {
+      "nome": "STEP010",
+      "descricao": "Extração do movimento da API",
+      "inicio": "2026-10-26T12:29:15Z",
+      "duracaoMs": 694,
+      "rc": 0
+    },
+    {
+      "nome": "STEP020",
+      "descricao": "Validação, SORT e conciliação (COBOL)",
+      "inicio": "2026-10-26T12:29:15Z",
+      "duracaoMs": 44,
+      "rc": 0
+    },
+    {
+      "nome": "STEP030",
+      "descricao": "Publicação para o painel",
+      "inicio": "2026-10-26T12:29:16Z",
+      "duracaoMs": 30,
+      "rc": 0
+    }
+  ],
+  "arquivos": [
+    "JOBLOG.TXT",
+    "MOVIMENTO.DAT",
+    "RELATORIO.TXT",
+    "RESULTADO.DAT"
+  ]
+}
