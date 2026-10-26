@@ -1,0 +1,90 @@
+# Batch noturno em COBOL: extrai o movimento da pix-api, concilia razão x saldo e publica
+# o resultado na branch "batch-resultados", lida pelo painel em docs/batch.html.
+name: Batch noturno (COBOL)
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 03:00 em Brasília (UTC-3)
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Data de referência (AAAA-MM-DD). Vazio = ontem"
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths: ["cobol/**", ".github/workflows/batch-noturno.yml", ".github/actions/gnucobol/**"]
+  pull_request:
+    paths: ["cobol/**"]
+
+permissions:
+  contents: write # para publicar na branch batch-resultados
+
+concurrency:
+  group: batch-noturno
+  cancel-in-progress: false
+
+env:
+  API: https://pix-api-vfy6.onrender.com
+
+jobs:
+  testes:
+    name: Testes de arquivo-ouro (COBOL)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/gnucobol
+      - run: cobc --version | head -1
+      - run: cobol/testes/executar-testes.sh
+
+  noturno:
+    name: Job noturno PIXBATCH
+    needs: testes
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/gnucobol
+
+      - name: Execuções anteriores (branch batch-resultados)
+        uses: actions/checkout@v4
+        with:
+          ref: batch-resultados
+          path: publicacao
+
+      - name: Executar o job (extrai, concilia, publica)
+        id: job
+        env:
+          ORIGEM: ${{ github.event_name == 'schedule' && 'noturno' || 'manual' }}
+          DATA: ${{ inputs.data }}
+        run: |
+          set +e
+          cobol/job/job-noturno.sh --api "$API" --data "$DATA" --saida publicacao --origem "$ORIGEM"
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar resultados
+        working-directory: publicacao
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Batch noturno $(date -u +%Y-%m-%d) - RC=${{ steps.job.outputs.rc }}"
+          git push
+
+      - name: Resumo no GitHub
+        if: always()
+        run: |
+          ULTIMA="$(ls -1d publicacao/execucoes/*/ | sort | tail -1)"
+          {
+            echo "## Batch noturno — RC=${{ steps.job.outputs.rc }}"
+            echo '```'
+            cat "$ULTIMA/RELATORIO.TXT" 2>/dev/null || cat "$ULTIMA/JOBLOG.TXT"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # RC 04 (divergência) é um alerta, como num job de mainframe; RC 08+ falha o workflow.
+      - name: Avaliar código de retorno
+        run: |
+          RC=${{ steps.job.outputs.rc }}
+          if [ "$RC" -ge 8 ]; then echo "::error::Job terminou com RC=$RC"; exit 1; fi
+          if [ "$RC" -eq 4 ]; then echo "::warning::Conciliação com divergências (RC=04)"; fi

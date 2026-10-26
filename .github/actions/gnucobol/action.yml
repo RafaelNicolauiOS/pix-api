@@ -1,0 +1,37 @@
+# Instala o GnuCOBOL 3.2 (a mesma versão usada no desenvolvimento) compilando do código-fonte.
+# O resultado fica em cache: só a primeira execução paga os ~3 minutos de compilação.
+name: Instalar GnuCOBOL
+description: Compila (ou recupera do cache) o GnuCOBOL e o coloca no PATH
+inputs:
+  versao:
+    description: Versão do GnuCOBOL
+    default: "3.2"
+runs:
+  using: composite
+  steps:
+    - name: "Dependências (GMP: aritmética decimal de precisão usada pelo COBOL)"
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y -qq libgmp-dev
+
+    - name: Cache do GnuCOBOL
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/gnucobol
+        key: gnucobol-${{ inputs.versao }}-${{ runner.os }}-${{ runner.arch }}
+
+    - name: Compilar GnuCOBOL ${{ inputs.versao }}
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -sSfL "https://ftpmirror.gnu.org/gnucobol/gnucobol-${{ inputs.versao }}.tar.xz" | tar -xJ
+        cd "gnucobol-${{ inputs.versao }}"
+        ./configure --prefix="$HOME/gnucobol" --without-db --without-curses --without-xml2 --without-json
+        make -j"$(nproc)"
+        make install
+
+    - name: Colocar no PATH
+      shell: bash
+      run: |
+        echo "$HOME/gnucobol/bin" >> "$GITHUB_PATH"
+        echo "LD_LIBRARY_PATH=$HOME/gnucobol/lib" >> "$GITHUB_ENV"
