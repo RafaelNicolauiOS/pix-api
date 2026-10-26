@@ -1,12 +1,14 @@
 # pix-api
 
 API REST de estudo que simula contas e transferências Pix, feita com **Spring Boot 4 + Java 17**,
-com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
+com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages e um **batch noturno em
+COBOL** que concilia o razão contábil com os saldos toda madrugada.
 
 | | Link |
 |---|---|
 | Front-end (GitHub Pages) | https://rafaelnicolauios.github.io/pix-api/ |
 | Atividade (eventos e logs) | https://rafaelnicolauios.github.io/pix-api/atividade.html |
+| Batch noturno (COBOL) | https://rafaelnicolauios.github.io/pix-api/batch.html |
 | API (Render) | https://pix-api-vfy6.onrender.com |
 | Código | https://github.com/RafaelNicolauiOS/pix-api |
 
@@ -18,6 +20,8 @@ com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 - **Java 17** (Eclipse Temurin) e **Spring Boot 4.1.2**: Web MVC, Data JPA, Validation
 - **PostgreSQL** em produção (Render) e **H2** em memória localmente e nos testes
 - **Flyway** para versionar o schema do banco (o mesmo script roda nos dois bancos)
+- **COBOL** (GnuCOBOL 3.2) para o batch noturno de conciliação (`cobol/`)
+- **GitHub Actions** para rodar o batch todo dia às 03:00 e publicar o resultado
 - **Go** para a ferramenta de teste de carga e consistência (`tools/carga`)
 - **Spring Kafka** para publicar eventos de domínio (opcional; no Render os eventos vão para o log)
 - **JUnit 5 + Mockito + MockMvc** para testes (desenvolvidos com TDD)
@@ -39,6 +43,10 @@ flowchart LR
     end
     M -. "pix.mensageria=kafka" .-> K[["Kafka<br/>tópico pix.transferencias"]]
     R --> DB[("PostgreSQL (Render)<br/>H2 em memória (local/testes)")]
+    GA["GitHub Actions<br/>03:00"] -- "GET /batch/movimento" --> C
+    GA --> CB["COBOL CONCILIA<br/>razão × saldo"]
+    CB --> BR[["branch batch-resultados"]]
+    BR --> Browser
 ```
 
 | Pacote | Responsabilidade | Paralelo com iOS/Swift |
@@ -50,6 +58,7 @@ flowchart LR
 | `domain` | Entidade `Conta` com as regras que a protegem (saldo nunca fica negativo) | Model |
 | `mensageria` | Implementações do `PublicadorDeEventos` (Kafka, log), listener e consumidor de exemplo | Adapters de um `protocol` |
 | `monitoramento` | Últimos eventos e últimas linhas de log em memória, para a página Atividade | Um "console" de debug |
+| `batch` | Exportação do movimento noturno em largura fixa (contrato com o COBOL) | Um "encoder" de arquivo |
 | `config` | CORS e carga das contas de exemplo | `AppDelegate` / configuração |
 
 <details>
@@ -67,15 +76,18 @@ pix-api/
 │   ├── mensageria/    TransferenciaRealizadaListener, LogPublicadorDeEventos,
 │   │                  KafkaPublicadorDeEventos, KafkaConfig, NotificacaoConsumer
 │   ├── monitoramento/ HistoricoDeEventos, LogsEmMemoria, LinhaDeLog, MonitoramentoConfig
-│   ├── repository/    ContaRepository
-│   └── domain/        Conta, SaldoInsuficienteException
+│   ├── batch/         LayoutMovimento, ExportacaoMovimentoService
+│   ├── repository/    ContaRepository, LancamentoRepository
+│   └── domain/        Conta, Lancamento (razão), TipoLancamento, SaldoInsuficienteException
 ├── src/main/resources/
 │   ├── application.properties        configuração padrão (H2)
 │   ├── application-prod.properties   perfil de produção (PostgreSQL)
-│   └── db/migration/                 scripts do Flyway (V1__criar_tabela_conta.sql)
+│   └── db/migration/                 scripts do Flyway (V1 conta, V2 razão)
 ├── src/test/java/...  testes (ver "Como testar")
+├── cobol/             batch noturno: src/CONCILIA.cbl, copybooks/, testes/, job/
+├── .github/           workflow do batch noturno e action que instala o GnuCOBOL
 ├── tools/carga/       teste de carga e consistência em Go (ver seção própria)
-├── docs/              front-end: index.html + app.js, atividade.html + atividade.js, style.css
+├── docs/              front-end: index.html, atividade.html, batch.html (+ batch/), style.css
 ├── Dockerfile
 ├── render.yaml
 └── pom.xml
@@ -192,6 +204,94 @@ A evolução é o padrão **[Transactional Outbox](https://microservices.io/patt
 Nesta arquitetura, a mudança fica contida: um novo `PublicadorDeEventos` (ou o próprio listener,
 na fase `BEFORE_COMMIT`) grava na tabela `outbox`, e o `TransferenciaService` não muda.
 
+## Batch noturno em COBOL
+
+Todo dia às 03:00 (Brasília), um job confere se o **razão contábil** fecha com os **saldos**,
+a conciliação que bancos rodam toda madrugada. Painel:
+https://rafaelnicolauios.github.io/pix-api/batch.html
+
+```mermaid
+flowchart LR
+    API["API Java<br/>saldo + razão"] -- "STEP010<br/>GET /batch/movimento" --> MOV[/"MOVIMENTO<br/>150 bytes/registro"/]
+    MOV -- "STEP020" --> COB["CONCILIA (COBOL)<br/>valida · SORT · balance line"]
+    COB --> REL[/"RELATORIO<br/>132 colunas"/]
+    COB --> RES[/"RESULTADO<br/>largura fixa"/]
+    COB --> RC{{"RC 00 · 04 · 12"}}
+    RES -- "STEP030<br/>branch batch-resultados" --> PAINEL["Painel<br/>docs/batch.html"]
+```
+
+**1. Razão contábil (Java).** Cada mudança de saldo grava, **na mesma transação**, um lançamento
+imutável na tabela `lancamento` ([`V2__criar_razao_lancamento.sql`](src/main/resources/db/migration/V2__criar_razao_lancamento.sql)):
+abertura da conta, Pix enviado/recebido (partidas dobradas, com o id da transferência) e
+encerramento. Invariante: **soma do razão de uma conta = saldo da conta** (`RazaoIntegrationTest`).
+A migração V2 cria a abertura das contas que já existiam (implantação).
+
+**2. Exportação (Java).** `GET /batch/movimento?data=AAAA-MM-DD` (padrão: ontem) devolve um
+arquivo de largura fixa, contrato com o copybook [`MOVIMENTO.cpy`](cobol/copybooks/MOVIMENTO.cpy):
+
+| Registro | Conteúdo |
+|---|---|
+| `H` header | data de referência, data/hora da extração, sistema de origem |
+| `C` conta | id `9(10)`, chave `X(77)`, titular `X(30)`, saldo `9(13)V99` |
+| `L` lançamento | conta, data, hora, natureza `C`/`D`, tipo, valor `9(13)V99`, id da transferência |
+| `T` trailer | **totais de controle**: quantidade de contas e lançamentos, soma de créditos e débitos |
+
+Saldos e razão são lidos na mesma transação `REPEATABLE_READ` (uma "foto" só); texto só em
+ASCII (acento ocupa 2 bytes em UTF-8 e deslocaria as colunas); `V99` é a vírgula implícita.
+
+**3. Programa [`CONCILIA.cbl`](cobol/src/CONCILIA.cbl) (COBOL).**
+
+1. Valida o arquivo: header primeiro, trailer por último, campos numéricos e **totais de
+   controle**. Qualquer falha rejeita o arquivo (**RC 12**) — pega arquivo truncado ou corrompido.
+2. `SORT` dos lançamentos por conta, data e hora (`INPUT PROCEDURE` filtra só os registros `L`).
+3. **Balance line**: casa o razão ordenado com o cadastro ordenado. Para cada conta separa
+   abertura (antes do dia), créditos e débitos do dia e movimento posterior (até a extração), e
+   compara `saldo calculado` com o saldo da API.
+4. Situações: `CONCILIADA`, `DIVERGENTE`, `ENCERRADA` (excluída, razão zerado), `SEM RAZAO`
+   (saldo sem lançamentos) e `SEM CADASTRO` (razão de conta inexistente). **RC 04** se houver divergência.
+5. Gera o relatório de 132 colunas, o arquivo `RESULTADO` ([`RESULTADO.cpy`](cobol/copybooks/RESULTADO.cpy))
+   lido pelo painel, e o `RETURN-CODE`.
+
+**4. Testes de arquivo-ouro.** [`cobol/testes/`](cobol/testes) tem 5 cenários (dia normal,
+divergências, arquivo truncado, trailer que não confere, campo não numérico). Cada um tem a
+entrada e o `RESULTADO` + RC esperados **calculados à mão antes do programa** (TDD); o relatório e
+o job log são conferidos por *approval testing*. Um bug introduzido de propósito (tratar o dia
+como abertura) quebra 2 dos 5 cenários.
+
+```bash
+brew install gnucobol
+```
+
+```bash
+cobol/testes/executar-testes.sh
+```
+
+**5. Job e agendamento.** [`cobol/job/job-noturno.sh`](cobol/job/job-noturno.sh) é o "JCL":
+STEP010 extrai (com tentativas, porque o Render dorme), STEP020 executa o COBOL (arquivos ligados
+por variáveis `DD_*`, como os cartões DD), STEP030 publica. O workflow
+[`batch-noturno.yml`](.github/workflows/batch-noturno.yml) roda os testes a cada push no COBOL e o
+job às 03:00 (ou em **Actions → Batch noturno (COBOL) → Run workflow**), publicando na branch
+[`batch-resultados`](https://github.com/RafaelNicolauiOS/pix-api/tree/batch-resultados). RC 04 gera
+um alerta; RC 08+ falha o workflow.
+
+Rodar localmente contra a API:
+
+```bash
+cobol/job/job-noturno.sh --api http://localhost:8080 --data $(date +%F) --saida /tmp/batch
+```
+
+**6. Painel.** [`docs/batch.html`](docs/batch.html) lê as execuções reais (branch
+`batch-resultados`) e três **demonstrações** geradas pelo mesmo job: noite normal, *lost update*
+(API sem o lock, sob a carga da ferramenta em Go — o COBOL aponta as 4 contas e a soma das
+diferenças bate com o valor que o teste em Go viu sumir) e arquivo truncado. Ele reproduz o job
+log, mostra indicadores, um gráfico de diferença por conta, a tabela e o relatório impresso.
+[`layout.js`](docs/batch/layout.js) interpreta o `RESULTADO` com as posições do copybook e é
+testado contra os arquivos-ouro (`node --test docs/batch/layout.test.mjs`).
+
+**Por que o razão pega o que o saldo esconde:** o saldo é sobrescrito a cada operação; o razão só
+acrescenta linhas. Uma condição de corrida pode fazer o saldo "esquecer" uma operação, mas não
+apaga o lançamento.
+
 ## Endpoints
 
 | Método | Rota | Corpo | Respostas |
@@ -204,6 +304,7 @@ na fase `BEFORE_COMMIT`) grava na tabela `outbox`, e o `TransferenciaService` n�
 | `POST` | `/transferencias` | `{chaveOrigem, chaveDestino, valor}` | 200 · 400 · 404 · 422 |
 | `GET` | `/eventos` | — | 200: últimas 100 transferências confirmadas (mais recente primeiro) |
 | `GET` | `/logs?limite=200` | cabeçalho `X-Admin-Token` | 200: últimas linhas de log (máx. 500) · 401 · 404 se desativado |
+| `GET` | `/batch/movimento?data=AAAA-MM-DD` | — | 200: arquivo texto de largura fixa para o batch (padrão: ontem) · 400 data futura/inválida |
 
 | Status | Quando |
 |---|---|
@@ -378,19 +479,23 @@ No log aparece `Successfully applied 1 migration` na primeira vez e
 ./mvnw test
 ```
 
-**60 testes**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com H2
-e Kafka embutido, sem precisar de PostgreSQL, Kafka ou Docker instalados:
+**75 testes Java**, todos escritos antes da implementação (TDD: vermelho → verde). Eles rodam com
+H2 e Kafka embutido, sem precisar de PostgreSQL, Kafka ou Docker instalados. Além deles: 5 cenários
+de arquivo-ouro do COBOL, 3 testes do leitor JavaScript e 13 testes da ferramenta em Go.
 
 | Teste | Tipo | Qtd. | O que cobre |
 |---|---|---|---|
 | `domain/ContaTest` | Unidade pura | 4 | Débito, crédito e saldo insuficiente |
-| `service/ContaServiceTest` | Unidade com Mockito | 9 | CRUD, listagem ordenada e chave Pix duplicada, com repositório mockado |
-| `service/TransferenciaServiceTest` | Unidade com Mockito | 6 | Débito/crédito, publicação do evento e nenhuma publicação em saldo insuficiente, chave inexistente ou origem = destino |
+| `service/ContaServiceTest` | Unidade com Mockito | 10 | CRUD, listagem ordenada, chave Pix duplicada e lançamentos de abertura/encerramento |
+| `service/TransferenciaServiceTest` | Unidade com Mockito | 7 | Débito/crédito, lançamentos no razão, publicação do evento e nada em saldo insuficiente, chave inexistente ou origem = destino |
 | `controller/ContaControllerTest` | `@WebMvcTest` | 9 | Rotas, status, JSON e validação de contas |
 | `controller/TransferenciaControllerTest` | `@WebMvcTest` | 5 | 200, 400, 404 e 422 no formato ProblemDetail |
 | `config/CorsConfigTest` | `@WebMvcTest` | 4 | GitHub Pages e localhost permitidos, cabeçalho do token liberado, outros domínios bloqueados |
 | `TransferenciaIntegrationTest` | `@SpringBootTest` + H2 | 3 | Débito/crédito gravados de verdade, rollback e contas de exemplo |
-| `MigracaoBancoTest` | `@SpringBootTest` | 1 | Migrações do Flyway aplicadas, nenhuma pendente |
+| `MigracaoBancoTest` | `@SpringBootTest` | 1 | Migrações do Flyway (V1 e V2) aplicadas, nenhuma pendente |
+| `RazaoIntegrationTest` | `@SpringBootTest` + MockMvc | 3 | Soma do razão = saldo após transferências e recusa; conta encerrada com razão zerado |
+| `batch/LayoutMovimentoTest` | Unidade pura | 6 | Posição a posição de header, conta, lançamento e trailer; acentos e truncamento |
+| `batch/ExportacaoMovimentoIntegrationTest` | `@SpringBootTest` + MockMvc | 4 | Arquivo consistente com os totais do trailer; data futura/inválida; padrão = ontem |
 | `mensageria/PublicacaoAposCommitTest` | `@SpringBootTest` + mock do publicador | 3 | Evento só após o commit; nada com saldo insuficiente nem com rollback |
 | `mensageria/KafkaMensageriaIntegrationTest` | `@SpringBootTest` + `@EmbeddedKafka` | 3 | Transferência → mensagem no tópico → notificação; duplicata ignorada |
 | `monitoramento/HistoricoDeEventosTest` | Unidade pura | 2 | Ordem (mais recente primeiro) e capacidade do histórico |
@@ -598,6 +703,8 @@ precisa ser público no plano gratuito.
 ## Próximos passos
 
 - Rodar `tools/carga` no GitHub Actions contra a API com PostgreSQL a cada push.
+- Batch: guardar o saldo de fechamento de cada noite e conciliar o dia seguinte a partir dele
+  (hoje a abertura é recalculada a partir do razão inteiro).
 - Transactional Outbox para garantir a entrega dos eventos (ver [Mensageria](#mensageria-eventos)).
 - Entidade `Transferencia` com histórico e um `GET /contas/{id}/extrato`.
 - Idempotência no `POST /transferencias` (header `Idempotency-Key`) para evitar duplicidade em retries.
