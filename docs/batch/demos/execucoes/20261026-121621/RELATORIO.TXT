@@ -1,0 +1,26 @@
+PIX-API - PROCESSAMENTO NOTURNO         CONCILIA - CONCILIACAO RAZAO X SALDO                                            PAGINA 0001
+DATA DE REFERENCIA: 26/10/2026   EXTRACAO: 26/10/2026 09:16:21   PROCESSAMENTO: 26/10/2026 09:16:21
+------------------------------------------------------------------------------------------------------------------------------------
+     CONTA CHAVE PIX            ABERTURA   CREDITOS DIA    DEBITOS DIA    SALDO CALC.      SALDO API      DIFERENCA SITUACAO
+------------------------------------------------------------------------------------------------------------------------------------
+         1 ana@pix.com              0,00       1.025,00         120,50         904,50         904,50           0,00 CONCILIADA
+         2 bruno@pix.com            0,00         370,50           0,00         370,50         370,50           0,00 CONCILIADA
+         3 +5511999990000           0,00          50,00           0,00          50,00          50,00           0,00 CONCILIADA
+         4                          0,00          75,00          75,00           0,00           0,00           0,00 ENCERRADA
+         5 carga-71a34ca0           0,00       3.502,01       2.730,29         771,72         771,72           0,00 CONCILIADA
+         6 carga-71a34ca0           0,00       3.324,74       2.862,25         462,49         462,49           0,00 CONCILIADA
+         7 carga-71a34ca0           0,00       3.723,36       2.304,10       1.419,26       1.419,26           0,00 CONCILIADA
+         8 carga-71a34ca0           0,00       3.865,75       2.519,22       1.346,53       1.346,53           0,00 CONCILIADA
+------------------------------------------------------------------------------------------------------------------------------------
+TOTAIS DE CONTROLE
+  REGISTROS DE CONTA LIDOS .........:                    7
+  LANCAMENTOS LIDOS NO RAZAO .......:                  813
+  CREDITOS NO ARQUIVO ..............:            15.936,36
+  DEBITOS NO ARQUIVO ...............:            10.611,36
+  CREDITOS DO DIA ..................:            15.936,36
+  DEBITOS DO DIA ...................:            10.611,36
+  CONTAS AVALIADAS .................:                    8
+  CONTAS COM DIVERGENCIA ...........:                    0
+------------------------------------------------------------------------------------------------------------------------------------
+RESULTADO: CONCILIACAO OK - RAZAO E SALDOS CONFEREM                                                            RC=00
+SALDO CALC. = ABERTURA + CREDITOS DO DIA - DEBITOS DO DIA + MOVIMENTO POSTERIOR AO DIA (ATE A EXTRACAO)

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b6e5f">
+  <title>Processamento noturno · Pix API Demo</title>
+  <meta name="description" content="Batch noturno em COBOL que concilia o razão contábil com os saldos da pix-api.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="pagina-batch">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-pix" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 2.8 21.2 12 12 21.2 2.8 12Z"/><path d="m8 12 4-4 4 4-4 4Z"/></g></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m-5-5 5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/></g></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M7 18h10a4 4 0 0 0 .5-7.97A6 6 0 0 0 6.1 9.5 4.25 4.25 0 0 0 7 18Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6Z"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 4v16m0 0-3-3m3 3 3-3M17 20V4m0 0-3 3m3-3 3 3"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0Zm14 0-3 7a3 3 0 0 0 6 0Z"/></g></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 16V5m-5 5 5-5 5 5M5 20h14"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  </svg>
+
+  <header class="topbar">
+    <a class="marca" href="./" aria-label="Voltar para o início">
+      <span class="marca-logo"><svg><use href="#i-pix"/></svg></span>
+      <span class="marca-nome">Pix API <small>demo</small></span>
+    </a>
+    <nav class="topbar-acoes" aria-label="Páginas">
+      <a class="link-topo" href="./">Banco</a>
+      <a class="link-topo" href="atividade.html">Atividade</a>
+      <a class="link-topo ativo" href="batch.html" aria-current="page">Batch noturno</a>
+    </nav>
+  </header>
+
+  <main class="pagina batch">
+    <section class="hero-batch">
+      <div>
+        <p class="sobretitulo"><svg><use href="#i-moon"/></svg> Todo dia às 03:00 (Brasília)</p>
+        <h1>Processamento noturno</h1>
+        <p class="subtitulo">Um batch em <strong>COBOL</strong> confere, conta a conta, se o <strong>razão contábil</strong>
+          (cada crédito e débito registrado pela API em Java) fecha com os <strong>saldos</strong>. É a conciliação que
+          bancos rodam toda madrugada para pegar dinheiro criado ou perdido.</p>
+        <ul class="tecnologias" aria-label="Tecnologias">
+          <li>Java · Spring Boot</li><li>COBOL · GnuCOBOL</li><li>GitHub Actions</li><li>JavaScript</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="abas" role="tablist" aria-label="Origem das execuções">
+      <button type="button" role="tab" id="aba-reais" data-fonte="reais" aria-selected="true">Execuções reais</button>
+      <button type="button" role="tab" id="aba-demos" data-fonte="demos" aria-selected="false" tabindex="-1">Demonstrações</button>
+    </div>
+    <p class="nota" id="fonte-descricao"></p>
+
+    <div class="batch-grade">
+      <aside class="lista-execucoes-card" aria-label="Execuções">
+        <ul class="lista-execucoes" id="lista-execucoes"></ul>
+        <div class="estado-vazio" id="lista-vazia" hidden></div>
+      </aside>
+
+      <section class="execucao" id="execucao" aria-live="polite" hidden>
+        <div class="card cabecalho-execucao">
+          <div class="cab-info">
+            <span class="rc-selo" id="rc-selo"></span>
+            <div>
+              <h2 id="exec-titulo"></h2>
+              <p class="exec-meta" id="exec-meta"></p>
+            </div>
+          </div>
+          <button type="button" class="btn primario" id="reproduzir"><svg><use href="#i-play"/></svg> Reproduzir execução</button>
+        </div>
+
+        <ol class="pipeline" id="pipeline" aria-label="Etapas do job">
+          <li data-etapa="extrai"><span class="etapa-icone"><svg><use href="#i-cloud"/></svg></span><strong>Extrai</strong><small>STEP010 · GET /batch/movimento</small><em class="etapa-status"></em></li>
+          <li data-etapa="valida"><span class="etapa-icone"><svg><use href="#i-shield"/></svg></span><strong>Valida</strong><small>Header, trailer e totais de controle</small><em class="etapa-status"></em></li>
+          <li data-etapa="sort"><span class="etapa-icone"><svg><use href="#i-sort"/></svg></span><strong>SORT</strong><small>Razão por conta, data e hora</small><em class="etapa-status"></em></li>
+          <li data-etapa="concilia"><span class="etapa-icone"><svg><use href="#i-scale"/></svg></span><strong>Concilia</strong><small>Balance line razão × saldo</small><em class="etapa-status"></em></li>
+          <li data-etapa="publica"><span class="etapa-icone"><svg><use href="#i-upload"/></svg></span><strong>Publica</strong><small>STEP030 · relatório e painel</small><em class="etapa-status"></em></li>
+        </ol>
+
+        <div class="batch-dupla">
+          <div class="card">
+            <div class="card-titulo"><h3>Job log</h3><span class="nota" id="joblog-info"></span></div>
+            <pre class="terminal" id="joblog" tabindex="0" aria-label="Log do job"></pre>
+          </div>
+          <div class="kpis" id="kpis"></div>
+        </div>
+
+        <div class="card" id="card-grafico">
+          <div class="card-titulo">
+            <h3>Diferença por conta</h3>
+            <span class="nota">saldo da API − saldo calculado pelo razão</span>
+          </div>
+          <div class="legenda" id="legenda-grafico">
+            <span><i class="amostra pos"></i>API acima do razão (sobra)</span>
+            <span><i class="amostra neg"></i>API abaixo do razão (falta)</span>
+          </div>
+          <div class="grafico" id="grafico"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-titulo">
+            <h3>Contas conciliadas</h3>
+            <label class="interruptor"><input type="checkbox" id="so-divergentes"> Só divergências</label>
+          </div>
+          <div class="tabela-wrap">
+            <table class="tabela-batch">
+              <thead><tr>
+                <th>Conta</th><th>Chave Pix</th><th class="num">Abertura</th><th class="num">Créditos dia</th>
+                <th class="num">Débitos dia</th><th class="num">Posterior</th><th class="num">Saldo calc.</th>
+                <th class="num">Saldo API</th><th class="num">Diferença</th><th>Situação</th>
+              </tr></thead>
+              <tbody id="tabela-contas"></tbody>
+            </table>
+          </div>
+          <p class="nota">Saldo calc. = abertura (antes do dia) + créditos do dia − débitos do dia + movimento posterior
+            (da meia-noite até a extração). Valores lidos do arquivo <code>RESULTADO</code> gerado pelo COBOL.</p>
+        </div>
+
+        <details class="card relatorio-card">
+          <summary><h3>Relatório impresso (132 colunas)</h3><span class="nota">saída <code>RELATORIO</code> do programa</span></summary>
+          <pre class="terminal relatorio" id="relatorio" tabindex="0"></pre>
+        </details>
+
+        <div class="downloads" id="downloads"></div>
+      </section>
+    </div>
+
+    <section class="como-funciona" aria-labelledby="titulo-como">
+      <h2 id="titulo-como">Como funciona</h2>
+      <ol class="fluxo">
+        <li><strong>Online (Java)</strong><span>Cada Pix grava, na mesma transação, o saldo novo e dois lançamentos no razão (débito e crédito).</span></li>
+        <li><strong>03:00 · Extração</strong><span>O GitHub Actions chama <code>GET /batch/movimento</code>: um arquivo de largura fixa (150 bytes por registro) com header, contas, razão e trailer.</span></li>
+        <li><strong>COBOL</strong><span>Valida os totais de controle, ordena o razão com <code>SORT</code> e casa razão × cadastro (balance line). RC 00, 04 ou 12.</span></li>
+        <li><strong>Painel</strong><span>O resultado é publicado na branch <code>batch-resultados</code> e lido por esta página, que interpreta o mesmo layout do copybook.</span></li>
+      </ol>
+      <p class="nota">Por que o razão pega o que o saldo esconde: o saldo é <em>sobrescrito</em> a cada operação; o razão só
+        <em>acrescenta</em> linhas. Uma condição de corrida pode fazer o saldo "esquecer" uma operação, mas não apaga o
+        lançamento. Veja a demonstração <em>Lost update</em>.
+        <a href="https://github.com/RafaelNicolauiOS/pix-api/tree/main/cobol">Código COBOL no GitHub</a>.</p>
+    </section>
+  </main>
+
+  <div class="tooltip-grafico" id="tooltip" role="tooltip" hidden></div>
+  <script type="module" src="batch/batch.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+{
+  "id": "20261026-121621",
+  "titulo": "Noite normal: carga concorrente com lock",
+  "origem": "demo",
+  "api": "http://localhost:8087",
+  "inicio": "2026-10-26T12:16:21Z",
+  "fim": "2026-10-26T12:16:21Z",
+  "dataReferencia": "2026-10-26",
+  "rc": 0,
+  "situacao": "OK",
+  "passos": [
+    {
+      "nome": "STEP010",
+      "descricao": "Extração do movimento da API",
+      "inicio": "2026-10-26T12:16:21Z",
+      "duracaoMs": 148,
+      "rc": 0
+    },
+    {
+      "nome": "STEP020",
+      "descricao": "Validação, SORT e conciliação (COBOL)",
+      "inicio": "2026-10-26T12:16:21Z",
+      "duracaoMs": 56,
+      "rc": 0
+    },
+    {
+      "nome": "STEP030",
+      "descricao": "Publicação para o painel",
+      "inicio": "2026-10-26T12:16:21Z",
+      "duracaoMs": 33,
+      "rc": 0
+    }
+  ],
+  "arquivos": [
+    "JOBLOG.TXT",
+    "MOVIMENTO.DAT",
+    "RELATORIO.TXT",
+    "RESULTADO.DAT"
+  ]
+}

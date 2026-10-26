@@ -1,0 +1,40 @@
+{
+  "id": "20261026-121632",
+  "titulo": "Arquivo truncado na transmissão",
+  "origem": "demo",
+  "api": "arquivo local",
+  "inicio": "2026-10-26T12:16:32Z",
+  "fim": "2026-10-26T12:16:32Z",
+  "dataReferencia": "2026-10-26",
+  "rc": 12,
+  "situacao": "REJEITADO",
+  "passos": [
+    {
+      "nome": "STEP010",
+      "descricao": "Extração do movimento da API",
+      "inicio": "2026-10-26T12:16:32Z",
+      "duracaoMs": 49,
+      "rc": 0
+    },
+    {
+      "nome": "STEP020",
+      "descricao": "Validação, SORT e conciliação (COBOL)",
+      "inicio": "2026-10-26T12:16:32Z",
+      "duracaoMs": 45,
+      "rc": 12
+    },
+    {
+      "nome": "STEP030",
+      "descricao": "Publicação para o painel",
+      "inicio": "2026-10-26T12:16:32Z",
+      "duracaoMs": 39,
+      "rc": 0
+    }
+  ],
+  "arquivos": [
+    "JOBLOG.TXT",
+    "MOVIMENTO.DAT",
+    "RELATORIO.TXT",
+    "RESULTADO.DAT"
+  ]
+}

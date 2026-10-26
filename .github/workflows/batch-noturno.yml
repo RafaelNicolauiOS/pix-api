@@ -13,7 +13,7 @@ on:
         default: ""
   push:
     branches: [main]
-    paths: ["cobol/**", ".github/workflows/batch-noturno.yml", ".github/actions/gnucobol/**"]
+    paths: ["cobol/**", "docs/batch/**", ".github/workflows/batch-noturno.yml", ".github/actions/gnucobol/**"]
   pull_request:
     paths: ["cobol/**"]
 
@@ -36,6 +36,8 @@ jobs:
       - uses: ./.github/actions/gnucobol
       - run: cobc --version | head -1
       - run: cobol/testes/executar-testes.sh
+      - name: Leitor do RESULTADO no painel (JavaScript)
+        run: node --test docs/batch/layout.test.mjs
 
   noturno:
     name: Job noturno PIXBATCH

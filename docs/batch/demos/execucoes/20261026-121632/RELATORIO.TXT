@@ -1,0 +1,19 @@
+PIX-API - PROCESSAMENTO NOTURNO         CONCILIA - CONCILIACAO RAZAO X SALDO                                            PAGINA 0001
+DATA DE REFERENCIA: 26/10/2026   EXTRACAO: 26/10/2026 09:16:21   PROCESSAMENTO: 26/10/2026 09:16:32
+------------------------------------------------------------------------------------------------------------------------------------
+
+*** ARQUIVO REJEITADO: TRAILER AUSENTE - ARQUIVO TRUNCADO ***
+NENHUMA CONTA FOI CONCILIADA. CORRIJA A ORIGEM E REPROCESSE.
+
+------------------------------------------------------------------------------------------------------------------------------------
+TOTAIS DE CONTROLE
+  REGISTROS DE CONTA LIDOS .........:                    7
+  LANCAMENTOS LIDOS NO RAZAO .......:                  540
+  CREDITOS NO ARQUIVO ..............:            12.122,09
+  DEBITOS NO ARQUIVO ...............:             6.841,10
+  CREDITOS DO DIA ..................:                 0,00
+  DEBITOS DO DIA ...................:                 0,00
+  CONTAS AVALIADAS .................:                    0
+  CONTAS COM DIVERGENCIA ...........:                    0
+------------------------------------------------------------------------------------------------------------------------------------
+RESULTADO: ARQUIVO REJEITADO - TRAILER AUSENTE - ARQUIVO TRUNCADO                                              RC=12

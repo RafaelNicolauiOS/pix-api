@@ -1,0 +1,32 @@
+{
+  "execucoes": [
+    {
+      "id": "20261026-121629",
+      "titulo": "Lost update: carga concorrente sem lock",
+      "origem": "demo",
+      "inicio": "2026-10-26T12:16:29Z",
+      "dataReferencia": "2026-10-26",
+      "rc": 4,
+      "situacao": "DIVERGENTE"
+    },
+    {
+      "id": "20261026-121621",
+      "titulo": "Noite normal: carga concorrente com lock",
+      "origem": "demo",
+      "inicio": "2026-10-26T12:16:21Z",
+      "dataReferencia": "2026-10-26",
+      "rc": 0,
+      "situacao": "OK"
+    },
+    {
+      "id": "20261026-121632",
+      "titulo": "Arquivo truncado na transmissão",
+      "origem": "demo",
+      "inicio": "2026-10-26T12:16:32Z",
+      "dataReferencia": "2026-10-26",
+      "rc": 12,
+      "situacao": "REJEITADO"
+    }
+  ],
+  "atualizadoEm": "2026-10-26T12:16:32Z"
+}

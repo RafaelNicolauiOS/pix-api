@@ -1,0 +1,40 @@
+{
+  "id": "20261026-121629",
+  "titulo": "Lost update: carga concorrente sem lock",
+  "origem": "demo",
+  "api": "http://localhost:8088",
+  "inicio": "2026-10-26T12:16:29Z",
+  "fim": "2026-10-26T12:16:30Z",
+  "dataReferencia": "2026-10-26",
+  "rc": 4,
+  "situacao": "DIVERGENTE",
+  "passos": [
+    {
+      "nome": "STEP010",
+      "descricao": "Extração do movimento da API",
+      "inicio": "2026-10-26T12:16:29Z",
+      "duracaoMs": 169,
+      "rc": 0
+    },
+    {
+      "nome": "STEP020",
+      "descricao": "Validação, SORT e conciliação (COBOL)",
+      "inicio": "2026-10-26T12:16:30Z",
+      "duracaoMs": 47,
+      "rc": 4
+    },
+    {
+      "nome": "STEP030",
+      "descricao": "Publicação para o painel",
+      "inicio": "2026-10-26T12:16:30Z",
+      "duracaoMs": 42,
+      "rc": 0
+    }
+  ],
+  "arquivos": [
+    "JOBLOG.TXT",
+    "MOVIMENTO.DAT",
+    "RELATORIO.TXT",
+    "RESULTADO.DAT"
+  ]
+}
