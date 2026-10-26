@@ -18,6 +18,7 @@ com um front-end estático em [`docs/`](docs/) publicado no GitHub Pages.
 - **Java 17** (Eclipse Temurin) e **Spring Boot 4.1.2**: Web MVC, Data JPA, Validation
 - **PostgreSQL** em produção (Render) e **H2** em memória localmente e nos testes
 - **Flyway** para versionar o schema do banco (o mesmo script roda nos dois bancos)
+- **Go** para a ferramenta de teste de carga e consistência (`tools/carga`)
 - **Spring Kafka** para publicar eventos de domínio (opcional; no Render os eventos vão para o log)
 - **JUnit 5 + Mockito + MockMvc** para testes (desenvolvidos com TDD)
 - **Maven** via wrapper (`./mvnw`), sem precisar instalar o Maven
@@ -73,6 +74,7 @@ pix-api/
 │   ├── application-prod.properties   perfil de produção (PostgreSQL)
 │   └── db/migration/                 scripts do Flyway (V1__criar_tabela_conta.sql)
 ├── src/test/java/...  testes (ver "Como testar")
+├── tools/carga/       teste de carga e consistência em Go (ver seção própria)
 ├── docs/              front-end: index.html + app.js, atividade.html + atividade.js, style.css
 ├── Dockerfile
 ├── render.yaml
@@ -429,6 +431,78 @@ Chave inexistente (404):
 curl -s -X POST $API/transferencias -H 'Content-Type: application/json' -d '{"chaveOrigem":"ana@pix.com","chaveDestino":"ninguem@pix.com","valor":1}'
 ```
 
+## Teste de carga e consistência (Go)
+
+[`tools/carga`](tools/carga) é uma ferramenta de linha de comando em **Go** que prova, sob
+concorrência real, a principal garantia da API: **nenhum centavo é criado, perdido ou gasto duas
+vezes**.
+
+1. Cria contas exclusivas da execução (`carga-<id>-N@pix.com`), poucas, para forçar disputa.
+2. Dispara milhares de transferências aleatórias entre elas, com dezenas ou centenas
+   simultâneas (inclusive A→B e B→A ao mesmo tempo, o cenário clássico de deadlock).
+3. Lê os saldos finais e verifica, conta a conta, **saldo final = inicial − enviado + recebido**
+   (considerando só as respostas 200), nenhum saldo negativo e a soma total inalterada.
+4. Remove as contas de teste (também ao interromper com Ctrl-C).
+
+Pré-requisito: Go 1.23+ (`brew install go`). Com a API rodando em `localhost:8080`:
+
+```bash
+cd tools/carga && go run . -transferencias 2000 -concorrencia 100
+```
+
+```text
+Resultados (1.29 s · 1549 transferências/s)
+  200 confirmadas ............ 1976
+  422 saldo insuficiente ..... 24
+  valor movimentado .......... R$ 49.250,30
+  latência p50 54.9ms · p95 177.5ms · p99 265.5ms · máx 415.7ms
+
+Verificação de consistência
+  ✅ 5 contas: saldo final = inicial − enviado + recebido
+  ✅ nenhum saldo negativo
+  ✅ soma dos saldos inalterada: R$ 5.000,00
+
+Resultado: APROVADO — nenhum centavo criado, perdido ou gasto duas vezes.
+```
+
+**A prova de que o teste funciona:** com a mesma carga (semente `2026`) contra uma versão da API
+**sem** o `@Lock(PESSIMISTIC_WRITE)`, a API respondeu 200 para todas as transferências, mas
+**R$ 1.617,47 desapareceram** (soma de R$ 5.000,00 → R$ 3.382,53) e a ferramenta reprovou:
+
+| Versão da API | Transferências/s | Divergências | Soma final | Resultado |
+|---|---|---|---|---|
+| Com `SELECT ... FOR UPDATE` (atual) | ~1.550 | 0 | R$ 5.000,00 | ✅ APROVADO |
+| Sem lock (mutação temporária) | ~1.890 | 5 contas | R$ 3.382,53 | ❌ REPROVADO |
+
+O lock custa um pouco de vazão e de latência, e é isso que garante que o dinheiro fecha.
+
+| Flag | Padrão | Descrição |
+|---|---|---|
+| `-api` | `http://localhost:8080` | URL da pix-api |
+| `-contas` | `5` | contas criadas (menos contas = mais disputa) |
+| `-saldo` | `1000` | saldo inicial de cada conta, em reais |
+| `-transferencias` | `1000` | total de transferências |
+| `-concorrencia` | `50` | requisições simultâneas |
+| `-valor-max` | `50` | valor máximo por transferência, em reais |
+| `-semente` | aleatória | repita a semente para reproduzir exatamente a mesma carga |
+| `-manter` | `false` | não remove as contas de teste ao final |
+| `-permitir-remoto` | `false` | obrigatório para rodar contra uma API que não é local |
+
+Código de saída `0` = aprovado, `1` = inconsistência ou status inesperado (500, timeout...),
+`2` = erro de uso, o que permite usar a ferramenta num pipeline de CI.
+
+**Decisões (para quem vem de Swift):**
+
+- **Goroutines + canal (worker pool):** N goroutines leem tarefas de um canal, como várias `Task`
+  consumindo um `AsyncStream`; um `sync.WaitGroup` espera todas, como um `TaskGroup`.
+- **Dinheiro em `int64` de centavos:** Go não tem `BigDecimal`; inteiros não têm erro de
+  arredondamento. O JSON da API é lido com `json.Number`, sem passar por `float64`.
+- **Erros como valores:** cada função devolve `(resultado, error)`, sem `throw`.
+- **Só biblioteca padrão:** `net/http`, `encoding/json`, `flag`, `math/rand/v2`; nenhuma dependência.
+- **Testes sem a API real:** `carga_test.go` sobe uma API falsa com `net/http/httptest` em duas
+  versões, correta e com *lost update*, e exige que a ferramenta aprove a primeira e detecte a
+  segunda. Rode com `go test ./...` (e `go test -race ./...` para o detector de corridas do Go).
+
 ## Configuração
 
 Propriedades em [`application.properties`](src/main/resources/application.properties),
@@ -523,6 +597,7 @@ precisa ser público no plano gratuito.
 
 ## Próximos passos
 
+- Rodar `tools/carga` no GitHub Actions contra a API com PostgreSQL a cada push.
 - Transactional Outbox para garantir a entrega dos eventos (ver [Mensageria](#mensageria-eventos)).
 - Entidade `Transferencia` com histórico e um `GET /contas/{id}/extrato`.
 - Idempotência no `POST /transferencias` (header `Idempotency-Key`) para evitar duplicidade em retries.
