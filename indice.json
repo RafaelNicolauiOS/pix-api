@@ -1,6 +1,15 @@
 {
   "execucoes": [
     {
+      "id": "20261027-111621",
+      "titulo": null,
+      "origem": "noturno",
+      "inicio": "2026-10-27T11:16:21Z",
+      "dataReferencia": "2026-10-26",
+      "rc": 0,
+      "situacao": "OK"
+    },
+    {
       "id": "20261026-122915",
       "titulo": "Primeira execução em produção",
       "origem": "manual",
@@ -10,5 +19,5 @@
       "situacao": "OK"
     }
   ],
-  "atualizadoEm": "2026-10-26T12:29:16Z"
+  "atualizadoEm": "2026-10-27T11:18:47Z"
 }
