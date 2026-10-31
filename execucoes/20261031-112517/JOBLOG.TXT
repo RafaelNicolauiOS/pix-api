@@ -1,0 +1,16 @@
+PIXBATCH - JOB NOTURNO 20261031-112517 - INICIO 2026-10-31T11:25:17Z
+STEP010 EXTRAI   - GET https://pix-api-vfy6.onrender.com/batch/movimento
+curl: (28) Operation timed out after 90001 milliseconds with 0 bytes received
+STEP010 EXTRAI   - tentativa 1: HTTP 000, aguardando...
+STEP010 EXTRAI   - 26 registros recebidos
+compilado: /home/runner/work/pix-api/pix-api/cobol/bin/CONCILIA
+STEP020 CONCILIA - EXEC PGM=CONCILIA
+          CONCILIA - INICIO DO PROCESSAMENTO
+          CONCILIA - ARQUIVO VALIDADO: DATA DE REFERENCIA 30/10/2026, 6 CONTAS
+          CONCILIA - 18 LANCAMENTOS NO RAZAO - TOTAIS DE CONTROLE CONFEREM
+          CONCILIA - CONTAS AVALIADAS: 6
+          CONCILIA - CONTAS COM DIVERGENCIA: 0
+          CONCILIA - TERMINO DO PROCESSAMENTO - RC=00
+STEP020 CONCILIA - RC=00
+STEP030 PUBLICA  - gravando execução para o painel
+PIXBATCH - JOB NOTURNO 20261031-112517 - FIM 2026-10-31T11:27:35Z - MAXCC=00

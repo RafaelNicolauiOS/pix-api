@@ -1,0 +1,24 @@
+PIX-API - PROCESSAMENTO NOTURNO         CONCILIA - CONCILIACAO RAZAO X SALDO                                            PAGINA 0001
+DATA DE REFERENCIA: 30/10/2026   EXTRACAO: 31/10/2026 08:27:32   PROCESSAMENTO: 31/10/2026 11:27:35
+------------------------------------------------------------------------------------------------------------------------------------
+     CONTA CHAVE PIX            ABERTURA   CREDITOS DIA    DEBITOS DIA    SALDO CALC.      SALDO API      DIFERENCA SITUACAO
+------------------------------------------------------------------------------------------------------------------------------------
+         1 ana@pix.com            849,82           0,00           0,00         849,82         849,82           0,00 CONCILIADA
+         2 bruno@pix.com          250,00           0,00           0,00         250,00         250,00           0,00 CONCILIADA
+         3 +5511999990000         976,89           0,00           0,00         976,89         976,89           0,00 CONCILIADA
+         4 teste@teste.co       2.356,62           0,00           0,00       2.356,62       2.356,62           0,00 CONCILIADA
+         5 fe@teste.com         1.700,01           0,00           0,00       1.700,01       1.700,01           0,00 CONCILIADA
+         6 be@gmail.com         8.666,66           0,00           0,00       8.666,66       8.666,66           0,00 CONCILIADA
+------------------------------------------------------------------------------------------------------------------------------------
+TOTAIS DE CONTROLE
+  REGISTROS DE CONTA LIDOS .........:                    6
+  LANCAMENTOS LIDOS NO RAZAO .......:                   18
+  CREDITOS NO ARQUIVO ..............:            16.155,65
+  DEBITOS NO ARQUIVO ...............:             1.355,65
+  CREDITOS DO DIA ..................:                 0,00
+  DEBITOS DO DIA ...................:                 0,00
+  CONTAS AVALIADAS .................:                    6
+  CONTAS COM DIVERGENCIA ...........:                    0
+------------------------------------------------------------------------------------------------------------------------------------
+RESULTADO: CONCILIACAO OK - RAZAO E SALDOS CONFEREM                                                            RC=00
+SALDO CALC. = ABERTURA + CREDITOS DO DIA - DEBITOS DO DIA + MOVIMENTO POSTERIOR AO DIA (ATE A EXTRACAO)
