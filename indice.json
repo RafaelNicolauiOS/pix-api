@@ -1,6 +1,15 @@
 {
   "execucoes": [
     {
+      "id": "20261112-141518",
+      "titulo": null,
+      "origem": "noturno",
+      "inicio": "2026-11-12T14:15:18Z",
+      "dataReferencia": "2026-11-11",
+      "rc": 0,
+      "situacao": "OK"
+    },
+    {
       "id": "20261111-131246",
       "titulo": null,
       "origem": "noturno",
@@ -154,5 +163,5 @@
       "situacao": "OK"
     }
   ],
-  "atualizadoEm": "2026-11-11T13:15:00Z"
+  "atualizadoEm": "2026-11-12T14:17:36Z"
 }
