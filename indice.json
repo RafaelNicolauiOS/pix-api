@@ -1,6 +1,15 @@
 {
   "execucoes": [
     {
+      "id": "20261115-130952",
+      "titulo": null,
+      "origem": "noturno",
+      "inicio": "2026-11-15T13:09:52Z",
+      "dataReferencia": null,
+      "rc": 8,
+      "situacao": "FALHA NA EXTRACAO"
+    },
+    {
       "id": "20261114-124312",
       "titulo": null,
       "origem": "noturno",
@@ -181,5 +190,5 @@
       "situacao": "OK"
     }
   ],
-  "atualizadoEm": "2026-11-14T12:45:29Z"
+  "atualizadoEm": "2026-11-15T13:22:22Z"
 }
