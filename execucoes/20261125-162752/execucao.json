@@ -1,0 +1,30 @@
+{
+  "id": "20261125-162752",
+  "titulo": null,
+  "origem": "noturno",
+  "api": "https://pix-api-vfy6.onrender.com",
+  "inicio": "2026-11-25T16:27:52Z",
+  "fim": "2026-11-25T16:40:23Z",
+  "dataReferencia": null,
+  "rc": 8,
+  "situacao": "FALHA NA EXTRACAO",
+  "passos": [
+    {
+      "nome": "STEP010",
+      "descricao": "Extração do movimento da API",
+      "inicio": "2026-11-25T16:27:52Z",
+      "duracaoMs": 750113,
+      "rc": 8
+    },
+    {
+      "nome": "STEP030",
+      "descricao": "Publicação para o painel",
+      "inicio": "2026-11-25T16:40:23Z",
+      "duracaoMs": 23,
+      "rc": 0
+    }
+  ],
+  "arquivos": [
+    "JOBLOG.TXT"
+  ]
+}
